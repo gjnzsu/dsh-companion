@@ -1,6 +1,6 @@
 # Task 5 report
 
-Implementation commit: `54872aeeb9009658c700c2bd9f31a01859dc2491` (`feat: add companion interactions and transitions`).
+Implementation commits: `54872aeeb9009658c700c2bd9f31a01859dc2491` (`feat: add companion interactions and transitions`) and `c178859` (`fix: position companion popovers above the orb`).
 
 ## Delivered
 
