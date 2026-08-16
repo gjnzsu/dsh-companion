@@ -21,6 +21,7 @@
 - Product copy is English for `0.1.0`; state is also communicated by expression and accessible text, never color alone.
 - Respect `prefers-reduced-motion`; no flashing animation.
 - Use TDD for every behavior task and commit after every independently reviewable deliverable.
+- Treat [Product Design](../../product/product-design.md), [Visual Design](../../product/visual-design.md), and [Architecture](../../architecture.md) as the public normative references; update the owning document when implementation changes an approved product, visual, or architectural rule.
 
 ---
 

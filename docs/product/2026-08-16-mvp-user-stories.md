@@ -27,7 +27,7 @@ No MVP story is larger than M. If implementation evidence pushes a story beyond 
 | E2 — Inspect and Control | Inspect usage and control how the companion behaves in the workspace | Combines metric display, popover interaction, placement, visibility, keyboard access, and motion preferences | US-05–US-08 |
 | E3 — Trust and Release | Install and maintain the plugin with reproducible, credential-free evidence | Combines synthetic coverage, visual review, package integrity, real DSH integration, and onboarding | US-09–US-13 |
 
-Design reference for every story: [DSH Companion Design](../superpowers/specs/2026-08-15-dsh-companion-design.md).
+Design references for every story: [Product Design](./product-design.md), [Visual Design](./visual-design.md), and [Architecture](../architecture.md).
 
 ---
 

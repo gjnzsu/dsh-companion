@@ -82,7 +82,7 @@ If browser storage is unavailable, the plugin continues with in-memory preferenc
 
 The plugin is a projection-native, client-only DSH Web plugin. It does not introduce a polling endpoint, host-side token accounting service, provider-specific parser, or duplicated event-log scan.
 
-The npm package contains an empty host loader so it can participate in ordinary DSH plugin installation. Its client entry registers a root-scoped companion store and injects the rendered component into `shell.overlay`, the existing global slot intended for floating application-wide surfaces.
+The npm package contains an empty host loader so it can participate in ordinary DSH plugin installation. Its client entry injects one root-scoped component into `shell.overlay`, the existing global slot intended for floating application-wide surfaces. The component owns transient presentation state locally; validated browser preferences retain only position and collapsed state.
 
 ```mermaid
 flowchart LR
