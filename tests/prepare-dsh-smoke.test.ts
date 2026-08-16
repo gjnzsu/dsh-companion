@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { expect, test } from 'vitest'
 import {
   assertCompanionDump,
@@ -38,7 +39,7 @@ test('selects the supported installed and source-checkout DSH command prefixes',
   )).toEqual([
     'C:\\Node Runtime\\node.exe',
     '--import',
-    'C:\\SourceCode\\deepseek-harness\\node_modules\\tsx\\dist\\esm\\index.mjs',
+    pathToFileURL('C:\\SourceCode\\deepseek-harness\\node_modules\\tsx\\dist\\esm\\index.mjs').href,
     'C:\\SourceCode\\deepseek-harness\\apps\\cli\\src\\bin.ts',
   ])
 })
@@ -80,6 +81,7 @@ test('keeps a source checkout dotenv outside the DSH CLI working directory', () 
     const options = dshProcessOptions({ DSH_REPO: repository, OPENAI_API_KEY: 'ambient-secret' }, dshHome)
     expect(options.cwd).toBe(dshHome)
     expect(options.env).not.toHaveProperty('OPENAI_API_KEY')
+    expect(options.env.TSX_TSCONFIG_PATH).toBe(join(repository, 'tsconfig.json'))
     expect(existsSync(join(repository, '.env'))).toBe(true)
     expect(existsSync(join(options.cwd, '.env'))).toBe(false)
   } finally {

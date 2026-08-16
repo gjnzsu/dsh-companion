@@ -25,7 +25,7 @@ export function commandPrefix(
   return [
     nodeExecutable,
     '--import',
-    resolveTsxLoader(repository),
+    pathToFileURL(resolveTsxLoader(repository)).href,
     join(repository, 'apps', 'cli', 'src', 'bin.ts'),
   ]
 }
@@ -46,7 +46,11 @@ export function childEnvironment(source, dshHome) {
 
 /** Build the environment and working directory shared by DSH CLI invocations. */
 export function dshProcessOptions(source, dshHome) {
-  return { cwd: resolve(dshHome), env: childEnvironment(source, dshHome) }
+  const environment = childEnvironment(source, dshHome)
+  if (typeof source.DSH_REPO === 'string') {
+    environment.TSX_TSCONFIG_PATH = join(resolve(source.DSH_REPO), 'tsconfig.json')
+  }
+  return { cwd: resolve(dshHome), env: environment }
 }
 
 function writeSmokeState(statePath, state) {
