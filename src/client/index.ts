@@ -1,11 +1,7 @@
-import type { ClientContext, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
-import type {} from '@deepseek-ai/dsh-token-meter/client'
-import type {} from '@deepseek-ai/dsh-session-stats/client'
 import { createElement } from 'react'
 import { Companion } from './Companion.tsx'
 import { deriveCompanionState } from './derive-state.ts'
+import type { ClientContext, OverlayProps, SessionListState } from './dsh-contract.ts'
 import { mountCompanionStyles } from './styles.ts'
 import type { CompanionInput } from './types.ts'
 
@@ -47,7 +43,7 @@ function equalCompanionInput(left: CompanionInput | undefined, right: CompanionI
 }
 
 /** Render the companion from the framework's live selected-session hook. */
-function CompanionEntry({ useSessions }: PropsRuntime<'shell.overlay'>) {
+function CompanionEntry({ useSessions }: OverlayProps) {
   const input = useSessions(selectCurrentInput, equalCompanionInput)
   return createElement(Companion, { sessionId: input?.sessionId, model: deriveCompanionState(input) })
 }

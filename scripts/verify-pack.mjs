@@ -1,18 +1,31 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const json = execFileSync('pnpm', ['pack', '--json', '--pack-destination', mkdtempSync(join(tmpdir(), 'dsh-companion-pack-'))], {
-  encoding: 'utf8',
-  shell: process.platform === 'win32',
-})
+const packDirectory = mkdtempSync(join(tmpdir(), 'dsh-companion-pack-'))
+const pnpmEntry = process.env.npm_execpath
+const command = pnpmEntry === undefined ? 'pnpm' : process.execPath
+const prefix = pnpmEntry === undefined ? [] : [pnpmEntry]
+let json
+try {
+  json = execFileSync(command, [...prefix, 'pack', '--json', '--pack-destination', packDirectory], {
+    encoding: 'utf8',
+    shell: pnpmEntry === undefined && process.platform === 'win32',
+  })
+} finally {
+  // The file list is returned in stdout; no verifier artifact needs to survive.
+  rmSync(packDirectory, { recursive: true, force: true })
+}
 const start = Math.max(json.lastIndexOf('\n{'), json.lastIndexOf('\n[')) + 1
 const packed = JSON.parse(json.slice(start))
 const [{ filename, files }] = Array.isArray(packed) ? packed : [packed]
 const names = new Set(files.map(file => file.path))
-for (const required of ['package.json', 'cordis.patch.yml', 'lib/index.js', 'lib/client.js', 'lib/types/index.d.ts', 'lib/types/client/index.d.ts', 'LICENSE']) {
+for (const required of ['package.json', 'cordis.patch.yml', 'lib/index.js', 'lib/client.js', 'lib/types/index.d.ts', 'lib/types/client/index.d.ts', 'LICENSE', 'README.md']) {
   if (!names.has(required)) throw new Error(`packed file missing: ${required}`)
+}
+for (const name of names) {
+  if (/^lib\/types\/.*\.js$/.test(name)) throw new Error(`packed type directory contains runtime JavaScript: ${name}`)
 }
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 if (manifest.dsh?.bundle?.patch !== './cordis.patch.yml') throw new Error('dsh.bundle.patch is incorrect')

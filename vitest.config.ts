@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/**/*.test.{ts,tsx}'],
+    setupFiles: ['./tests/setup.ts'],
     clearMocks: true,
     restoreMocks: true,
     server: { deps: { inline: [/@deepseek-ai\//] } },
