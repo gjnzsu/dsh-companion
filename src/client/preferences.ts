@@ -81,12 +81,13 @@ export function savePreferences(
   preferences: CompanionPreferences,
 ): void {
   if (storage === undefined) return
+  const serialized = JSON.stringify({
+    x: preferences.x,
+    y: preferences.y,
+    collapsed: preferences.collapsed,
+  })
   try {
-    storage.setItem(PREFERENCES_KEY, JSON.stringify({
-      x: preferences.x,
-      y: preferences.y,
-      collapsed: preferences.collapsed,
-    }))
+    storage.setItem(PREFERENCES_KEY, serialized)
   } catch {
     // Storage can be unavailable in privacy-restricted browser contexts.
   }

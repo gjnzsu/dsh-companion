@@ -57,4 +57,14 @@ describe('companion preferences', () => {
 
     expect(() => savePreferences(storage, { x: 100, y: 200, collapsed: false })).not.toThrow()
   })
+
+  it('propagates preference field access errors', () => {
+    const preferences: CompanionPreferences = {
+      get x() { throw new Error('invalid preferences') },
+      y: 200,
+      collapsed: false,
+    }
+
+    expect(() => savePreferences({ setItem: () => undefined }, preferences)).toThrow('invalid preferences')
+  })
 })
