@@ -217,6 +217,7 @@
 }
 
 .dsh-companion-popover {
+  position: absolute;
   width: min(248px, calc(100vw - 32px));
   padding: 12px;
   color: var(--companion-text);
@@ -226,6 +227,12 @@
   box-shadow: 0 10px 28px var(--companion-shadow);
   font: var(--dsw-font-xs-13, 500 12px/1.35 system-ui, sans-serif);
   font-variant-numeric: tabular-nums;
+}
+
+.dsh-companion-popover-anchor {
+  position: absolute;
+  top: 0;
+  pointer-events: auto;
 }
 
 .dsh-companion-usage-row {
@@ -245,6 +252,7 @@
 .dsh-companion-usage-unavailable { margin: 0; color: var(--companion-muted); }
 
 .dsh-companion-tab {
+  position: absolute;
   display: inline-flex;
   min-width: 44px;
   min-height: 44px;
