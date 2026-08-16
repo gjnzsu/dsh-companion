@@ -174,8 +174,18 @@
 .dsh-companion-particle:nth-of-type(5) { animation-delay: 600ms; }
 
 .dsh-companion-orb[data-celebrating="true"] {
-  --orb-ring: var(--companion-success);
-  animation: dsh-companion-celebrate 2000ms ease-out 1;
+  --celebration-accent: var(--companion-success);
+}
+
+.dsh-companion-orb[data-celebrating="true"]::before {
+  position: absolute;
+  inset: -11px;
+  z-index: 1;
+  content: '';
+  pointer-events: none;
+  border: 2px solid var(--celebration-accent);
+  border-radius: 50%;
+  animation: dsh-companion-celebration-burst 2000ms ease-out 1;
 }
 
 .dsh-companion-state-label {
@@ -226,6 +236,12 @@
 .dsh-companion-usage-row + .dsh-companion-usage-row { margin-top: 8px; }
 .dsh-companion-usage-row [data-usage-label] { color: var(--companion-muted); }
 .dsh-companion-usage-value { margin-left: auto; text-align: right; }
+.dsh-companion-usage-row[data-usage-context] {
+  padding-bottom: 2px;
+  color: var(--companion-text);
+  font-weight: 600;
+}
+.dsh-companion-usage-row[data-usage-context] [data-usage-label] { color: var(--companion-text); }
 .dsh-companion-usage-unavailable { margin: 0; color: var(--companion-muted); }
 
 .dsh-companion-tab {
@@ -257,10 +273,10 @@
 @keyframes dsh-companion-wait {
   50% { opacity: .55; }
 }
-@keyframes dsh-companion-celebrate {
-  0% { box-shadow: 0 8px 20px var(--companion-shadow), 0 0 0 3px var(--orb-ring); }
-  24% { box-shadow: 0 10px 28px var(--companion-shadow), 0 0 0 8px var(--orb-ring); }
-  100% { box-shadow: 0 8px 20px var(--companion-shadow), 0 0 0 3px var(--orb-ring); }
+@keyframes dsh-companion-celebration-burst {
+  0% { transform: scale(.82); opacity: 0; }
+  18% { opacity: .85; }
+  100% { transform: scale(1.22); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -274,5 +290,5 @@
   .dsh-companion-orb[data-activity="working"],
   .dsh-companion-orb[data-activity="idle"] { animation: none; }
   .dsh-companion-particle { display: none !important; }
-  .dsh-companion-orb[data-celebrating="true"] { --orb-ring: var(--companion-success); }
+  .dsh-companion-orb[data-celebrating="true"]::before { animation: none; opacity: .7; }
 }

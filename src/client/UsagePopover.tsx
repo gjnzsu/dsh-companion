@@ -8,12 +8,13 @@ const numberFormat = new Intl.NumberFormat('en-US')
 interface UsageRowProps {
   label: string
   value: string
+  context?: boolean
 }
 
 /** Render one right-aligned usage metric. */
-function UsageRow({ label, value }: UsageRowProps): ReactElement {
+function UsageRow({ label, value, context = false }: UsageRowProps): ReactElement {
   return (
-    <div className="dsh-companion-usage-row">
+    <div className="dsh-companion-usage-row" data-usage-context={context || undefined}>
       <span data-usage-label>{label}</span>
       <span className="dsh-companion-usage-value">{value}</span>
     </div>
@@ -31,7 +32,7 @@ export function UsagePopover({ model }: { model: CompanionViewModel }): ReactEle
     && model.contextWindow !== undefined
   const rows = [
     contextKnown
-      ? { label: 'Context', value: `${Math.min(100, Math.round(model.contextPercent!))}% · ${numberFormat.format(model.contextTokens!)} / ${numberFormat.format(model.contextWindow!)}` }
+      ? { context: true, label: 'Context', value: `${Math.min(100, Math.round(model.contextPercent!))}% · ${numberFormat.format(model.contextTokens!)} / ${numberFormat.format(model.contextWindow!)}` }
       : undefined,
     model.billedInputTokens === undefined ? undefined : { label: 'Billed input', value: numberFormat.format(model.billedInputTokens) },
     model.outputTokens === undefined ? undefined : { label: 'Output', value: numberFormat.format(model.outputTokens) },

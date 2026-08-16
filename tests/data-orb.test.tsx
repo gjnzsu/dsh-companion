@@ -1,14 +1,23 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DataOrb } from '../src/client/DataOrb.tsx'
 import { UsagePopover } from '../src/client/UsagePopover.tsx'
 import type { CompanionViewModel } from '../src/client/types.ts'
+
+const companionCss = readFileSync('src/client/companion.css', 'utf8')
 
 function model(overrides: Partial<CompanionViewModel>): CompanionViewModel {
   return { activity: 'idle', pressure: 'unknown', ...overrides }
 }
 
 afterEach(cleanup)
+
+function cssRule(selector: string): string {
+  const start = companionCss.indexOf(`${selector} {`)
+  const end = companionCss.indexOf('}', start)
+  return companionCss.slice(start, end + 1)
+}
 
 describe('DataOrb', () => {
   it.each([
@@ -55,6 +64,17 @@ describe('DataOrb', () => {
     expect(onPointerDown).not.toHaveBeenCalled()
     expect(onCollapse).toHaveBeenCalledOnce()
   })
+
+  it('keeps attention and warning pressure rings when celebration adds its success burst', () => {
+    expect(cssRule('.dsh-companion-orb[data-pressure="attention"]')).toContain('--orb-ring: var(--companion-attention)')
+    expect(cssRule('.dsh-companion-orb[data-pressure="warning"]')).toContain('--orb-ring: var(--companion-attention)')
+    const celebration = cssRule('.dsh-companion-orb[data-celebrating="true"]')
+
+    expect(celebration).not.toContain('--orb-ring')
+    expect(celebration).toContain('--celebration-accent: var(--companion-success)')
+    expect(companionCss.match(/\.dsh-companion-orb\[data-celebrating="true"\]\s*\{[^}]*--orb-ring/g)).toBeNull()
+    expect(cssRule('.dsh-companion-orb[data-celebrating="true"]::before')).toContain('animation: dsh-companion-celebration-burst')
+  })
 })
 
 describe('UsagePopover', () => {
@@ -74,6 +94,9 @@ describe('UsagePopover', () => {
     const popover = screen.getByRole('status')
     const labels = Array.from(popover.querySelectorAll('[data-usage-label]'), label => label.textContent)
     expect(labels).toEqual(['Context', 'Billed input', 'Output', 'Cache hit', 'Steps'])
+    const context = popover.querySelector('[data-usage-context]')
+    expect(context?.textContent).toContain('Context')
+    expect(cssRule('.dsh-companion-usage-row[data-usage-context]')).toContain('font-weight: 600')
     expect(popover.textContent).toContain('74% · 94,720 / 128,000')
     expect(popover.textContent).toContain('12,430')
     expect(popover.textContent).toContain('2,110')
