@@ -23,6 +23,12 @@
 - Use TDD for every behavior task and commit after every independently reviewable deliverable.
 - Treat [Product Design](../../product/product-design.md), [Visual Design](../../product/visual-design.md), and [Architecture](../../architecture.md) as the public normative references; update the owning document when implementation changes an approved product, visual, or architectural rule.
 
+## Confirmed Execution Amendments
+
+- Task 1 creates and tests a minimal `src/client/index.ts` that registers a placeholder in `shell.overlay`. This makes `lib/client.js`, packed installation, and the highest-risk DSH integration seam provable before product UI work. Task 6 replaces the placeholder with the selected-session adapter and real `Companion`.
+- The gallery drives the real `Companion` through its public interactions to reach pinned state. It must not add a production prop or other test-only API for controlling `pinned`.
+- The release boundary is a verified installable tarball and release-ready repository. This plan does not publish to npm or create a GitHub remote.
+
 ---
 
 ## Planned File Map
@@ -100,6 +106,8 @@ Each task review must name the stories whose acceptance criteria it advances. Fi
 - Create: `src/client/css.d.ts`
 - Create: `src/client/styles.ts`
 - Create: `src/client/companion.css`
+- Create: `src/client/index.ts`
+- Create: `tests/client-bootstrap.test.tsx`
 - Create: `scripts/verify-pack.mjs`
 - Create: `LICENSE`
 - Create: `.gitignore`
@@ -107,8 +115,9 @@ Each task review must name the stories whose acceptance criteria it advances. Fi
 **Interfaces:**
 - Produces: host export `apply(): void`, client artifact `lib/client.js`, declaration tree `lib/types`, bundle patch `cordis.patch.yml`.
 - Produces: `mountCompanionStyles(document: Document): () => void` for Task 6.
+- Produces: a temporary, lifecycle-safe `shell.overlay` placeholder registration that Task 6 replaces with the production entry.
 
-- [ ] **Step 1: Write the failing package verification**
+- [ ] **Step 1: Write the failing package and client-bootstrap verification**
 
 Create `scripts/verify-pack.mjs` with exact required entries and host import behavior:
 
@@ -136,11 +145,13 @@ host.apply()
 console.log(`verified ${filename}`)
 ```
 
+Add `tests/client-bootstrap.test.tsx`. Against a minimal fake client context, assert that `apply()` registers exactly one entry in `shell.overlay` with id `dsh-companion`, renders the visible text `DSH Companion`, and disposes the registration and shared style cleanly. This is the RED proof for the earliest real DSH integration seam; Task 6 replaces these placeholder assertions with selected-session behavior.
+
 - [ ] **Step 2: Run the verifier to prove the package does not exist yet**
 
-Run: `node scripts/verify-pack.mjs`
+Run: `pnpm vitest run tests/client-bootstrap.test.tsx && node scripts/verify-pack.mjs`
 
-Expected: FAIL because `package.json`, build artifacts, or both are absent.
+Expected: FAIL because the client entry, package metadata, build artifacts, or all three are absent.
 
 - [ ] **Step 3: Add the exact package and build configuration**
 
@@ -244,6 +255,8 @@ Create `src/index.ts`:
 /** Host half of the browser-only DSH Companion plugin. */
 export function apply(): void {}
 ```
+
+Create the minimal `src/client/index.ts` using the public `inject = ['slots'] as const` contract. Its `apply()` installs the shared stylesheet and registers one temporary component in `shell.overlay` with metadata `{ name: 'shell.overlay', id: 'dsh-companion', order: 100, label: 'DSH Companion' }`. The temporary component renders only `DSH Companion`; it is intentionally replaced in Task 6.
 
 Create `.gitignore` containing `node_modules/`, `lib/`, `coverage/`, `playwright-report/`, `test-results/`, and `gallery/.vite/`. Add the standard MIT license text naming the current year and repository owner as `DSH Companion contributors`.
 
@@ -752,7 +765,7 @@ Define `SyntheticScenario { id; title; model; sessionId?; celebrating?; pinned? 
 
 - [ ] **Step 4: Build the credential-free gallery**
 
-`gallery/main.tsx` must import the real production components and stylesheet text, append one gallery-owned `<style>`, read query params `theme=light|dark`, `motion=normal|reduced`, and `open=closed|pinned`, then render every scenario in a labeled card. Pass a memory-only `Storage` implementation and fixed viewport to each `Companion`; for deterministic celebration, render `DataOrb` directly with `celebrating` from the fixture. Put `data-gallery-ready="true"` on the root after render.
+`gallery/main.tsx` must import the real production components and stylesheet text, append one gallery-owned `<style>`, read query params `theme=light|dark`, `motion=normal|reduced`, and `open=closed|pinned`, then render every scenario in a labeled card. Pass a memory-only `Storage` implementation and fixed viewport to each `Companion`. When `open=pinned`, a gallery-only wrapper activates the rendered orb through its real click interaction and marks the gallery ready only after every fixture is open; do not add a production control prop for pinned state. For deterministic celebration, render `DataOrb` directly with `celebrating` from the fixture. Put `data-gallery-ready="true"` on the root after render.
 
 Create a gallery grid that works at 1280×900 and 390×844. In reduced mode, add a root class that applies the same animation suppression as the media query. `gallery/vite.config.ts` must use root `gallery`, host `127.0.0.1`, strict port `4173`, and server port `4173`.
 
