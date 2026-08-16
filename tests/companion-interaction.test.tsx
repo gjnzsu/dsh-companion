@@ -6,7 +6,7 @@ import { Companion } from '../src/client/Companion.tsx'
 import type { CompanionViewModel } from '../src/client/types.ts'
 
 const viewport = { width: 800, height: 600 }
-const companionCss = readFileSync('src/client/companion.css', 'utf8')
+const companionCss = readFileSync('src/client/companion.css', 'utf8').replace(/\r\n?/g, '\n')
 
 function model(overrides: Partial<CompanionViewModel> = {}): CompanionViewModel {
   return { activity: 'idle', pressure: 'normal', contextPercent: 42, ...overrides }
