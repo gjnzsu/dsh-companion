@@ -2,16 +2,16 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { runtimeCommand } from './prepare-dsh-smoke.mjs'
 
 const packDirectory = mkdtempSync(join(tmpdir(), 'dsh-companion-pack-'))
-const pnpmEntry = process.env.npm_execpath
-const command = pnpmEntry === undefined ? 'pnpm' : process.execPath
-const prefix = pnpmEntry === undefined ? [] : [pnpmEntry]
+const runtime = runtimeCommand(['pnpm', 'pack', '--json', '--pack-destination', packDirectory], process.env)
 let json
 try {
-  json = execFileSync(command, [...prefix, 'pack', '--json', '--pack-destination', packDirectory], {
+  json = execFileSync(runtime.command, runtime.args, {
     encoding: 'utf8',
-    shell: pnpmEntry === undefined && process.platform === 'win32',
+    shell: runtime.shell,
+    windowsHide: true,
   })
 } finally {
   // The file list is returned in stdout; no verifier artifact needs to survive.

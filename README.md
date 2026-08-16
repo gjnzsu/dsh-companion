@@ -42,7 +42,7 @@ The panel reports only values supplied by the selected session's projections:
 
 - **Context** is projected token use divided by the model context window.
 - **Billed input** is uncached input plus cache-read tokens plus cache-write tokens.
-- **Output** is the projected output-token count.
+- **Output** is the accumulated provider-reported output-token count.
 - **Cache hit** is cache-read tokens divided by billed input, rounded to a whole percentage.
 - **Steps** is the projected completed-step count.
 

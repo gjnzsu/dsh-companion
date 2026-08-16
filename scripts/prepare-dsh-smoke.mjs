@@ -4,6 +4,7 @@ import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync,
 } from 'node:fs'
 import { connect } from 'node:net'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -14,24 +15,38 @@ const URL = `http://${HOST}:${PORT}`
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** Select the installed or source-checkout DSH command prefix. */
-export function commandPrefix(environment) {
-  return environment.DSH_REPO === undefined
-    ? ['dsh']
-    : ['pnpm', '--dir', environment.DSH_REPO, 'dsh']
+export function commandPrefix(
+  environment,
+  nodeExecutable = process.execPath,
+  resolveTsxLoader = repository => createRequire(join(repository, 'package.json')).resolve('tsx/esm'),
+) {
+  if (environment.DSH_REPO === undefined) return ['dsh']
+  const repository = resolve(environment.DSH_REPO)
+  return [
+    nodeExecutable,
+    '--import',
+    resolveTsxLoader(repository),
+    join(repository, 'apps', 'cli', 'src', 'bin.ts'),
+  ]
 }
 
-/** Copy child variables without accessing or forwarding the DeepSeek API key. */
+/** Copy non-credential child variables without reading credential-shaped values. */
 export function childEnvironment(source, dshHome) {
   const environment = {}
   for (const key of Object.keys(source)) {
     const normalizedKey = key.toUpperCase()
-    if (normalizedKey === 'DEEPSEEK_API_KEY' || normalizedKey === 'NO_COLOR'
+    if (/KEY|SECRET|TOKEN|PASSWORD/.test(normalizedKey) || normalizedKey === 'NO_COLOR'
       || normalizedKey === 'DSH_COMPANION_SMOKE_CONTROL') continue
     const value = source[key]
     if (value !== undefined) environment[key] = value
   }
   environment.DSH_HOME = dshHome
   return environment
+}
+
+/** Build the environment and working directory shared by DSH CLI invocations. */
+export function dshProcessOptions(source, dshHome) {
+  return { cwd: resolve(dshHome), env: childEnvironment(source, dshHome) }
 }
 
 function writeSmokeState(statePath, state) {
@@ -293,28 +308,71 @@ async function waitForExit(child, timeoutMilliseconds) {
   ])
 }
 
-async function terminateOwnedProcess(child) {
-  if (child === undefined || child.exitCode !== null || child.signalCode !== null || child.pid === undefined) return
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T'], { stdio: 'ignore', windowsHide: true })
+/** Stop the owned DSH process tree using native argv operations. */
+export async function terminateOwnedProcess(child, {
+  platform = process.platform,
+  runTaskkill = args => spawnSync('taskkill', args, { stdio: 'ignore', windowsHide: true }),
+  killProcessGroup = (pid, signal) => process.kill(-pid, signal),
+  wait = waitForExit,
+} = {}) {
+  if (child === undefined || child.exitCode !== null || child.signalCode !== null) return
+  if (child.pid === undefined) throw new Error('could not prove the spawned DSH Web process reached quiescence because it has no process id')
+  const attempts = []
+  let windowsTreeTerminationSucceeded = false
+  const taskkill = args => {
+    const label = `taskkill ${args.join(' ')}`
+    try {
+      const result = runTaskkill(args)
+      if (result?.error !== undefined) return { description: `${label} failed: ${result.error.message}`, succeeded: false }
+      return { description: `${label} exited ${result?.status ?? 'without a status'}`, succeeded: result?.status === 0 }
+    } catch (error) {
+      return { description: `${label} threw ${error instanceof Error ? error.message : String(error)}`, succeeded: false }
+    }
+  }
+  const runWindowsTermination = args => {
+    const result = taskkill(args)
+    attempts.push(result.description)
+    windowsTreeTerminationSucceeded ||= result.succeeded
+  }
+  const failQuiescence = () => {
+    const detail = attempts.length === 0 ? 'native process-group termination did not produce an exit event' : attempts.join('; ')
+    return new Error(`could not prove DSH Web process tree ${child.pid} reached quiescence: ${detail}`)
+  }
+  if (platform === 'win32') {
+    runWindowsTermination(['/PID', String(child.pid), '/T'])
   } else {
     try {
-      process.kill(-child.pid, 'SIGTERM')
+      killProcessGroup(child.pid, 'SIGTERM')
     } catch (error) {
       if (error?.code !== 'ESRCH') throw error
     }
   }
-  if (await waitForExit(child, 7_000)) return
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true })
+  if (await wait(child, 7_000)) {
+    if (platform !== 'win32' || windowsTreeTerminationSucceeded) return
+    throw failQuiescence()
+  }
+  if (platform === 'win32') {
+    runWindowsTermination(['/PID', String(child.pid), '/T', '/F'])
   } else {
     try {
-      process.kill(-child.pid, 'SIGKILL')
+      killProcessGroup(child.pid, 'SIGKILL')
     } catch (error) {
       if (error?.code !== 'ESRCH') throw error
     }
   }
-  await waitForExit(child, 2_000)
+  if (await wait(child, 2_000) && (platform !== 'win32' || windowsTreeTerminationSucceeded)) return
+  throw failQuiescence()
+}
+
+/** Remove smoke resources only after the owned server has stopped. */
+export async function cleanupSmokeRun({ app, dshHome, statePath }, {
+  terminate = terminateOwnedProcess,
+  removeHome = removeOwnedSmokeHome,
+  clearState = clearSmokeState,
+} = {}) {
+  await terminate(app)
+  await removeHome(dshHome)
+  clearState(statePath, dshHome)
 }
 
 async function main() {
@@ -323,7 +381,8 @@ async function main() {
   const statePath = typeof configuredControl === 'string'
     ? resolve(configuredControl)
     : join(tmpdir(), `dsh-companion-smoke-control-${randomUUID()}.json`)
-  const environment = childEnvironment(process.env, dshHome)
+  const dshOptions = dshProcessOptions(process.env, dshHome)
+  const environment = dshOptions.env
   const prefix = commandPrefix(process.env)
   let app
   writeSmokeState(statePath, { controlPath: statePath, dshHome })
@@ -337,22 +396,19 @@ async function main() {
     if (shutdown.requested) return
     const tarball = packedTarballPath(packOutput, dshHome)
     runDsh(prefix, ['plugin', '--profile', 'web', 'add', tarball], {
-      cwd: projectRoot,
-      env: environment,
+      ...dshOptions,
     })
     await delay(0)
     if (shutdown.requested) return
     const dump = runDsh(prefix, ['--profile', 'web', '--dump-config'], {
-      cwd: projectRoot,
-      env: environment,
+      ...dshOptions,
     })
     assertCompanionDump(dump)
     await delay(0)
     if (shutdown.requested) return
 
     app = spawnDsh(prefix, ['--profile', 'web', '--port', String(PORT)], {
-      cwd: projectRoot,
-      env: environment,
+      ...dshOptions,
       stdio: 'inherit',
     })
     const appFailure = observeChildFailure(app)
@@ -370,9 +426,7 @@ async function main() {
     ])
   } finally {
     shutdown.dispose()
-    await terminateOwnedProcess(app)
-    await removeOwnedSmokeHome(dshHome)
-    clearSmokeState(statePath, dshHome)
+    await cleanupSmokeRun({ app, dshHome, statePath })
   }
 }
 

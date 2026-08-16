@@ -6,11 +6,14 @@ import { expect, test } from 'vitest'
 import {
   assertCompanionDump,
   childEnvironment,
+  cleanupSmokeRun,
   commandPrefix,
+  dshProcessOptions,
   observeChildFailure,
   packedTarballPath,
   requestRecordedSmokeCleanup,
   runtimeCommand,
+  terminateOwnedProcess,
 } from '../scripts/prepare-dsh-smoke.mjs'
 
 test('captures asynchronous DSH failures as soon as the child is spawned', async () => {
@@ -28,19 +31,31 @@ test('captures asynchronous DSH failures as soon as the child is spawned', async
 
 test('selects the supported installed and source-checkout DSH command prefixes', () => {
   expect(commandPrefix({})).toEqual(['dsh'])
-  expect(commandPrefix({ DSH_REPO: 'C:\\SourceCode\\deepseek-harness' })).toEqual([
-    'pnpm',
-    '--dir',
-    'C:\\SourceCode\\deepseek-harness',
-    'dsh',
+  expect(commandPrefix(
+    { DSH_REPO: 'C:\\SourceCode\\deepseek-harness' },
+    'C:\\Node Runtime\\node.exe',
+    () => 'C:\\SourceCode\\deepseek-harness\\node_modules\\tsx\\dist\\esm\\index.mjs',
+  )).toEqual([
+    'C:\\Node Runtime\\node.exe',
+    '--import',
+    'C:\\SourceCode\\deepseek-harness\\node_modules\\tsx\\dist\\esm\\index.mjs',
+    'C:\\SourceCode\\deepseek-harness\\apps\\cli\\src\\bin.ts',
   ])
 })
 
-test('builds a child environment without reading or forwarding the API key', () => {
-  const source = new Proxy({ PATH: 'fixture-path', DeepSeek_Api_Key: 'must-not-be-read' }, {
+test('builds a child environment without reading or forwarding credential-shaped variables', () => {
+  const source = new Proxy({
+    PATH: 'fixture-path',
+    DSH_REPO: 'C:\\SourceCode\\deepseek-harness',
+    DeepSeek_Api_Key: 'must-not-be-read',
+    OPENAI_API_KEY: 'must-not-be-read',
+    client_secret: 'must-not-be-read',
+    Gh_ToKeN: 'must-not-be-read',
+    database_PASSWORD: 'must-not-be-read',
+  }, {
     get(target, property, receiver) {
-      if (typeof property === 'string' && property.toUpperCase() === 'DEEPSEEK_API_KEY') {
-        throw new Error('API key was read')
+      if (typeof property === 'string' && /KEY|SECRET|TOKEN|PASSWORD/i.test(property)) {
+        throw new Error(`credential variable ${property} was read`)
       }
       return Reflect.get(target, property, receiver)
     },
@@ -48,8 +63,28 @@ test('builds a child environment without reading or forwarding the API key', () 
 
   expect(childEnvironment(source, 'C:\\owned-smoke-home')).toEqual({
     PATH: 'fixture-path',
+    DSH_REPO: 'C:\\SourceCode\\deepseek-harness',
     DSH_HOME: 'C:\\owned-smoke-home',
   })
+})
+
+test('keeps a source checkout dotenv outside the DSH CLI working directory', () => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'dsh-companion-cwd-test-'))
+  const repository = join(fixtureRoot, 'harness-source')
+  const dshHome = join(fixtureRoot, 'isolated-home')
+  mkdirSync(repository)
+  mkdirSync(dshHome)
+  writeFileSync(join(repository, '.env'), 'OPENAI_API_KEY=file-layer-secret\n')
+
+  try {
+    const options = dshProcessOptions({ DSH_REPO: repository, OPENAI_API_KEY: 'ambient-secret' }, dshHome)
+    expect(options.cwd).toBe(dshHome)
+    expect(options.env).not.toHaveProperty('OPENAI_API_KEY')
+    expect(existsSync(join(repository, '.env'))).toBe(true)
+    expect(existsSync(join(options.cwd, '.env'))).toBe(false)
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true })
+  }
 })
 
 test('requests and observes cleanup only for the current owned smoke home', async () => {
@@ -120,6 +155,64 @@ test('resolves an installed Windows command shim without interpreting metacharac
       args: [entry, 'plugin', 'add', 'C:\\Temp\\plugin & untouched.tgz'],
       shell: false,
     })
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true })
+  }
+})
+
+test.each([
+  ['failed escalation', [1, 5]],
+  ['stale process after successful commands', [0, 0]],
+] as const)('fails closed when Windows teardown cannot prove quiescence after %s', async (_case, statuses) => {
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+    pid: 4_242,
+  })
+  const taskkillArgs: string[][] = []
+  let attempt = 0
+
+  await expect(terminateOwnedProcess(child, {
+    platform: 'win32',
+    runTaskkill(args: string[]) {
+      taskkillArgs.push(args)
+      return { status: statuses[attempt++] }
+    },
+    wait: async () => false,
+  })).rejects.toThrow(/could not prove DSH Web process tree 4242 reached quiescence/)
+  expect(taskkillArgs).toEqual([
+    ['/PID', '4242', '/T'],
+    ['/PID', '4242', '/T', '/F'],
+  ])
+})
+
+test('does not accept a root exit when Windows tree termination failed', async () => {
+  const child = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signalCode: null,
+    pid: 4_243,
+  })
+
+  await expect(terminateOwnedProcess(child, {
+    platform: 'win32',
+    runTaskkill: () => ({ status: 1 }),
+    wait: async () => true,
+  })).rejects.toThrow(/could not prove DSH Web process tree 4243 reached quiescence/)
+})
+
+test('retains the owned home and control state when teardown is not quiescent', async () => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'dsh-companion-retained-cleanup-test-'))
+  const dshHome = join(fixtureRoot, 'dsh-companion-smoke-retained')
+  const statePath = join(fixtureRoot, 'control.json')
+  mkdirSync(dshHome)
+  writeFileSync(statePath, JSON.stringify({ controlPath: statePath, dshHome }))
+
+  try {
+    await expect(cleanupSmokeRun({ app: {}, dshHome, statePath }, {
+      terminate: async () => { throw new Error('process tree is still live') },
+    })).rejects.toThrow('process tree is still live')
+    expect(existsSync(dshHome)).toBe(true)
+    expect(existsSync(statePath)).toBe(true)
   } finally {
     rmSync(fixtureRoot, { recursive: true, force: true })
   }

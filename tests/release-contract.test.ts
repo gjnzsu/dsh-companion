@@ -9,6 +9,7 @@ const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
   peerDependenciesMeta?: Record<string, { optional?: boolean }>
   devDependencies?: Record<string, string>
 }
+const readme = readFileSync('README.md', 'utf8')
 
 test('leaves host and host-injected modules out of install-time dependencies', () => {
   expect(manifest.dsh?.client?.inject).toEqual([
@@ -29,4 +30,9 @@ test('keeps the published client declarations independent of unpublished DSH pac
   const source = readFileSync('src/client/index.ts', 'utf8')
   expect(source).not.toContain("from '@deepseek-ai/")
   expect(source).toContain("from './dsh-contract.ts'")
+})
+
+test('describes output as accumulated provider-reported usage', () => {
+  expect(readme).toContain('**Output** is the accumulated provider-reported output-token count.')
+  expect(readme).not.toContain('projected output-token count')
 })
