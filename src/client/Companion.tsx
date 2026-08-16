@@ -63,7 +63,7 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
   const rootRef = useRef<HTMLDivElement>(null)
   const tabRef = useRef<HTMLButtonElement>(null)
   const previousRef = useRef<{ sessionId?: string; activity: CompanionViewModel['activity'] }>()
-  const celebrationTimerRef = useRef<ReturnType<typeof window.setTimeout>>()
+  const celebrationTimerRef = useRef<number>()
   const preferencesRef = useRef(preferences)
   const persistInitialCollapsedRef = useRef(preferences.collapsed)
   const dragRef = useRef<DragState>()

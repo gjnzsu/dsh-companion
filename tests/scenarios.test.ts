@@ -25,6 +25,22 @@ describe('Synthetic State Matrix', () => {
     )
   })
 
+  it('pins every approved id to its activity, pressure, and context percentage', () => {
+    expect(Object.fromEntries(SYNTHETIC_SCENARIOS.map(({ id, model }) => [id, {
+      activity: model.activity,
+      pressure: model.pressure,
+      contextPercent: model.contextPercent,
+    }]))).toEqual({
+      'no-session': { activity: 'sleeping', pressure: 'unknown', contextPercent: undefined },
+      'idle-unknown': { activity: 'idle', pressure: 'unknown', contextPercent: undefined },
+      'working-42': { activity: 'working', pressure: 'normal', contextPercent: 42 },
+      'waiting-65': { activity: 'waiting', pressure: 'normal', contextPercent: 65 },
+      'attention-74': { activity: 'idle', pressure: 'attention', contextPercent: 74 },
+      'warning-92': { activity: 'working', pressure: 'warning', contextPercent: 92 },
+      celebration: { activity: 'working', pressure: 'normal', contextPercent: 42 },
+    })
+  })
+
   it('contains one deterministic celebration fixture', () => {
     expect(SYNTHETIC_SCENARIOS.filter(scenario => scenario.celebrating)).toHaveLength(1)
     expect(SYNTHETIC_SCENARIOS.find(scenario => scenario.celebrating)?.id).toBe('celebration')

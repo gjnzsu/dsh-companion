@@ -38,7 +38,7 @@
     "@deepseek-ai/dsh-session-projection": "0.1.0-rc.5",
     "@deepseek-ai/dsh-session-stats": "0.1.0-rc.5",
     "@deepseek-ai/dsh-token-meter": "0.1.0-rc.5",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "1.60.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.0",
     "@types/node": "^22.18.0",

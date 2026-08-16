@@ -27,6 +27,8 @@
 
 - Task 1 creates and tests a minimal `src/client/index.ts` that registers a placeholder in `shell.overlay`. This makes `lib/client.js`, packed installation, and the highest-risk DSH integration seam provable before product UI work. Task 6 replaces the placeholder with the selected-session adapter and real `Companion`.
 - The gallery drives the real `Companion` through its public interactions to reach pinned state. It must not add a production prop or other test-only API for controlling `pinned`.
+- Tasks 7 and 8 were executed as one combined browser-evidence slice beginning with commit `b40cae5`. The gallery server, synthetic fixtures, screenshot baselines, and Task 5's deferred rendered-rectangle checks share one setup and RED/GREEN cycle; retain that history and treat the combined slice as the single reviewable delivery unit for completion accounting.
+- Visual screenshot comparison is canonical only on `win32` with exact `@playwright/test` `1.60.0` and the Chromium/Chromium Headless Shell revision `1223` declared by that Playwright release. `pnpm test:visual` rejects another platform or toolchain before baseline lookup. Cross-platform rendered-geometry evidence remains available by setting `DSH_COMPANION_VISUAL_GEOMETRY_ONLY=1`, which selects only `*.geometry.spec.ts`; it does not claim platform-neutral PNG determinism.
 - The release boundary is a verified installable tarball and release-ready repository. This plan does not publish to npm or create a GitHub remote.
 
 ---
@@ -198,7 +200,7 @@ Create `package.json` with these fields and versions:
     "@deepseek-ai/dsh-session-projection": "0.1.0-rc.5",
     "@deepseek-ai/dsh-session-stats": "0.1.0-rc.5",
     "@deepseek-ai/dsh-token-meter": "0.1.0-rc.5",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "1.60.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.0",
     "@types/node": "^22.18.0",
@@ -737,6 +739,8 @@ git commit -m "feat: mount companion in the DSH overlay"
 
 ### Task 7: Create the Synthetic State Matrix and visual gallery
 
+**Execution record amendment:** Tasks 7 and 8 were delivered together because the gallery/server is also the browser harness for screenshots and the real-rendering obligation deferred from Task 5. Commit `b40cae5` is the combined implementation commit; review corrections are forward fixes, not a history rewrite.
+
 **Files:**
 - Create: `gallery/scenarios.ts`
 - Create: `gallery/main.tsx`
@@ -790,6 +794,8 @@ git commit -m "test: add synthetic companion gallery"
 
 ### Task 8: Add deterministic Playwright visual regression
 
+**Execution record amendment:** This task's files and evidence are part of the combined Task 7/8 browser-evidence slice recorded above. Its separate commit step is superseded by the formal combined-slice completion criterion.
+
 **Files:**
 - Create: `playwright.visual.config.ts`
 - Create: `tests/visual/companion.visual.spec.ts`
@@ -820,7 +826,7 @@ For each, set viewport, emulate reduced motion where requested, navigate with qu
 
 Run: `pnpm test:visual`
 
-Expected: FAIL with missing screenshot baselines while writing actual images to test results.
+Expected on the canonical Windows toolchain: FAIL with missing screenshot baselines while writing actual images to test results. On another platform or Playwright/Chromium revision, configuration fails first with the declared canonical-environment requirement rather than searching for an unrelated platform baseline.
 
 - [ ] **Step 3: Generate and review baselines**
 
@@ -832,7 +838,7 @@ Expected: six baseline PNG files are created. Inspect every image for clipped po
 
 Run: `pnpm test:visual`
 
-Expected: all six screenshot comparisons pass without pixel differences.
+Expected on `win32`, exact `@playwright/test` `1.60.0`, and Playwright-declared Chromium revision `1223`: all six screenshot comparisons pass without pixel differences. For geometry evidence only on another platform, set `DSH_COMPANION_VISUAL_GEOMETRY_ONLY=1` and run the same command; the five rectangle cases run without treating their browser rendering as screenshot-baseline evidence.
 
 - [ ] **Step 5: Commit visual coverage**
 
@@ -937,7 +943,7 @@ git commit -m "docs: complete DSH companion MVP release"
 
 Before calling version `0.1.0` complete, record the exact successful commands and confirm:
 
-1. `git log --oneline` shows one reviewable commit for each task.
+1. `git log --oneline` shows one reviewable commit for each independent delivery slice; Tasks 7 and 8 count as the formally recorded combined browser-evidence slice beginning at `b40cae5`.
 2. `git status --short` is empty.
 3. The pack verifier proves the bundle, host entry, client artifact, types, patch, license, and README ship.
 4. Synthetic tests cover durable states, transition state, pressure edges, missing data, preferences, interactions, and lifecycle disposal.
