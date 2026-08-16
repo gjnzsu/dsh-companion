@@ -248,6 +248,16 @@ The MVP includes:
 - Draggable placement, local position persistence, hide and summon behavior, keyboard access, and reduced motion.
 - Pure derivation tests, Synthetic State Matrix, lightweight Visual Gallery, deterministic visual screenshots, packaging checks, and a real DSH Web smoke test.
 
+## MVP Backlog
+
+The MVP is epic-sized rather than one user story. Its delivery backlog is split into three epics and thirteen sprint-sized stories in [DSH Companion MVP User Stories](../../product/2026-08-16-mvp-user-stories.md):
+
+- **E1 — Ambient Session Awareness:** global companion presence, activity, context pressure, and current-session fidelity.
+- **E2 — Inspect and Control:** usage inspection, pin/dismiss behavior, placement and recovery, and accessible reduced-motion use.
+- **E3 — Trust and Release:** synthetic confidence, visual review, installable packaging, real DSH Web smoke coverage, and user documentation.
+
+Every story has an S or M estimate, a named user outcome, and four to six observable acceptance criteria. If implementation evidence pushes a story beyond three focused engineering days, its acceptance-criteria branches must be split before work continues.
+
 ## Explicit Non-Goals
 
 Version `0.1.0` does not include:

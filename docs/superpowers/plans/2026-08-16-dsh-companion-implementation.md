@@ -63,6 +63,30 @@
 
 ---
 
+## User Story Coverage
+
+The approved backlog is [DSH Companion MVP User Stories](../../product/2026-08-16-mvp-user-stories.md). Tasks are engineering execution units; stories remain the user-value and acceptance units.
+
+| Story | Outcome | Implemented and proved by |
+| --- | --- | --- |
+| US-01 | See a companion in DSH Web | Tasks 1 and 6 |
+| US-02 | Understand agent activity | Tasks 2, 4, and 5 |
+| US-03 | See context pressure | Tasks 2 and 4 |
+| US-04 | Follow the current session | Tasks 5 and 6 |
+| US-05 | Inspect usage details | Tasks 2 and 4 |
+| US-06 | Pin and dismiss details | Task 5 |
+| US-07 | Place, collapse, and restore | Tasks 3 and 5 |
+| US-08 | Use an accessible calm companion | Tasks 4, 5, and 8 |
+| US-09 | Exercise rules without a model key | Tasks 2–7 |
+| US-10 | Review every visual state | Tasks 7 and 8 |
+| US-11 | Install a complete npm bundle | Tasks 1, 6, and 9 |
+| US-12 | Prove the packed plugin in real DSH Web | Task 9 |
+| US-13 | Understand installation, privacy, and limits | Task 9 |
+
+Each task review must name the stories whose acceptance criteria it advances. Final MVP verification closes stories only after every mapped criterion has direct evidence.
+
+---
+
 ### Task 1: Establish the installable client-only bundle
 
 **Files:**
