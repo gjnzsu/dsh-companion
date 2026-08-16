@@ -1,17 +1,16 @@
 import { defineConfig } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { assertVisualEnvironment } from './tests/visual/environment.ts'
+import { resolvePlaywrightPackageChain } from './tests/visual/playwright-packages.ts'
 
 interface BrowserRegistry {
   browsers: Array<{ name: string; revision: string }>
 }
 
-const require = createRequire(import.meta.url)
-const playwrightManifest = require('@playwright/test/package.json') as { version: string }
-const playwrightCoreManifest = require.resolve('playwright-core/package.json')
-const registry = JSON.parse(readFileSync(join(dirname(playwrightCoreManifest), 'browsers.json'), 'utf8')) as BrowserRegistry
+const packageChain = resolvePlaywrightPackageChain()
+const playwrightManifest = JSON.parse(readFileSync(packageChain.testManifest, 'utf8')) as { version: string }
+const registry = JSON.parse(readFileSync(join(dirname(packageChain.coreManifest), 'browsers.json'), 'utf8')) as BrowserRegistry
 const chromiumRevision = registry.browsers.find(browser => browser.name === 'chromium')?.revision
 const headlessRevision = registry.browsers.find(browser => browser.name === 'chromium-headless-shell')?.revision
 const geometryOnly = process.env.DSH_COMPANION_VISUAL_GEOMETRY_ONLY === '1'
