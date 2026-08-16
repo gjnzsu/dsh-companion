@@ -1,0 +1,10 @@
+.dsh-companion-root { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.dsh-companion-anchor { position: absolute; pointer-events: auto; touch-action: none; }
+.dsh-companion-orb, .dsh-companion-tab, .dsh-companion-popover { pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .dsh-companion-root *, .dsh-companion-root *::before, .dsh-companion-root *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
