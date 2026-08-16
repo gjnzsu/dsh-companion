@@ -14,9 +14,13 @@ export interface Viewport {
   height: number
 }
 
+/** The viewport edge occupied by a collapsed recovery tab. */
+export type RecoveryEdge = 'left' | 'right'
+
 /** Persisted companion placement and collapsed state. */
 export interface CompanionPreferences extends Position {
   collapsed: boolean
+  edge: RecoveryEdge
 }
 
 /** Whether a stored value is a valid preference record. */
@@ -26,6 +30,12 @@ function isPreferences(value: unknown): value is CompanionPreferences {
   return typeof candidate.x === 'number' && Number.isFinite(candidate.x)
     && typeof candidate.y === 'number' && Number.isFinite(candidate.y)
     && typeof candidate.collapsed === 'boolean'
+    && (candidate.edge === undefined || candidate.edge === 'left' || candidate.edge === 'right')
+}
+
+/** Choose the horizontal recovery edge nearest a companion position. */
+export function nearestRecoveryEdge(position: Position, viewport: Viewport): RecoveryEdge {
+  return position.x + ORB_EXTENT / 2 < viewport.width / 2 ? 'left' : 'right'
 }
 
 /** Keep a position within the viewport's permitted companion area. */
@@ -48,7 +58,7 @@ export function loadPreferences(
   storage: Pick<Storage, 'getItem'> | undefined,
   viewport: Viewport,
 ): CompanionPreferences {
-  const fallback = { ...clampPosition({ x: viewport.width - 112, y: viewport.height - 112 }, viewport), collapsed: false }
+  const fallback = { ...clampPosition({ x: viewport.width - 112, y: viewport.height - 112 }, viewport), collapsed: false, edge: 'right' as const }
   if (storage === undefined) return fallback
 
   let stored: string | null
@@ -67,7 +77,8 @@ export function loadPreferences(
   }
   if (!isPreferences(parsed)) return fallback
 
-  return { ...clampPosition(parsed, viewport), collapsed: parsed.collapsed }
+  const position = clampPosition(parsed, viewport)
+  return { ...position, collapsed: parsed.collapsed, edge: parsed.edge ?? nearestRecoveryEdge(position, viewport) }
 }
 
 /**
@@ -85,6 +96,7 @@ export function savePreferences(
     x: preferences.x,
     y: preferences.y,
     collapsed: preferences.collapsed,
+    edge: preferences.edge,
   })
   try {
     storage.setItem(PREFERENCES_KEY, serialized)

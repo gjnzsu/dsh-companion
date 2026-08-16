@@ -1,9 +1,11 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Companion } from '../src/client/Companion.tsx'
 import type { CompanionViewModel } from '../src/client/types.ts'
 
 const viewport = { width: 800, height: 600 }
+const companionCss = readFileSync('src/client/companion.css', 'utf8')
 
 function model(overrides: Partial<CompanionViewModel> = {}): CompanionViewModel {
   return { activity: 'idle', pressure: 'normal', contextPercent: 42, ...overrides }
@@ -45,6 +47,12 @@ function popover(): HTMLElement | null {
   return screen.queryByRole('status')
 }
 
+function pointerClick(target: Element): void {
+  fireEvent.pointerDown(target, { button: 0, pointerId: 1, pointerType: 'mouse' })
+  fireEvent.pointerUp(target, { button: 0, pointerId: 1, pointerType: 'mouse' })
+  fireEvent.click(target, { detail: 1 })
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }))
@@ -57,6 +65,41 @@ afterEach(() => {
 })
 
 describe('Companion disclosure', () => {
+  it('requires new pointer intent after an explicit unpin', () => {
+    renderCompanion()
+
+    fireEvent.pointerEnter(anchor(), { pointerType: 'mouse' })
+    pointerClick(orb())
+    fireEvent.pointerLeave(anchor(), { pointerType: 'mouse' })
+    expect(orb().getAttribute('aria-expanded')).toBe('true')
+
+    fireEvent.pointerEnter(anchor(), { pointerType: 'mouse' })
+    pointerClick(orb())
+    expect(orb().getAttribute('aria-expanded')).toBe('false')
+    expect(popover()).toBeNull()
+
+    fireEvent.pointerLeave(anchor(), { pointerType: 'mouse' })
+    fireEvent.pointerEnter(anchor(), { pointerType: 'mouse' })
+    expect(orb().getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('lets keyboard activation reopen details after Escape dismisses focused details', () => {
+    renderCompanion()
+
+    orb().focus()
+    fireEvent.keyDown(orb(), { key: 'Enter' })
+    fireEvent.click(orb(), { detail: 0 })
+    expect(orb().getAttribute('aria-expanded')).toBe('true')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(orb().getAttribute('aria-expanded')).toBe('false')
+    expect(popover()).toBeNull()
+
+    fireEvent.keyDown(orb(), { key: 'Enter' })
+    fireEvent.click(orb(), { detail: 0 })
+    expect(orb().getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('opens on hover and closes when the pointer leaves the companion', () => {
     renderCompanion()
 
@@ -118,13 +161,37 @@ describe('Companion disclosure', () => {
     expect(popover()).toBeNull()
   })
 
-  it('places pinned details away from the nearest viewport edges', () => {
-    renderCompanion()
-    fireEvent.click(orb())
+  it.each([
+    [{ x: 100, y: 100 }, { left: '98px', top: '98px', 'max-height': '386px' }],
+    [{ x: 688, y: 100 }, { left: '-258px', top: '98px', 'max-height': '386px' }],
+    [{ x: 100, y: 488 }, { left: '98px', bottom: '98px', 'max-height': '462px' }],
+    [{ x: 688, y: 488 }, { left: '-258px', bottom: '98px', 'max-height': '462px' }],
+  ])('positions a panel-sized popover box in each viewport quadrant', (position, expected) => {
+    const saved = storage()
+    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ ...position, collapsed: false, edge: 'right' }))
+    renderCompanion({ storage: saved })
+    pointerClick(orb())
 
     const panelAnchor = popover()!.parentElement!
-    expect(panelAnchor.style.right).toBe('98px')
-    expect(panelAnchor.style.bottom).toBe('98px')
+    expect(panelAnchor.style.width).toBe('248px')
+    for (const [property, value] of Object.entries(expected)) expect(panelAnchor.style.getPropertyValue(property)).toBe(value)
+  })
+
+  it('clamps the compact popover box to a sixteen-pixel horizontal viewport inset', () => {
+    const compactViewport = { width: 300, height: 200 }
+    const saved = storage()
+    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ x: 188, y: 88, collapsed: false, edge: 'right' }))
+    renderCompanion({ storage: saved, viewport: () => compactViewport })
+    pointerClick(orb())
+
+    const panelAnchor = popover()!.parentElement!
+    expect(panelAnchor.style.left).toBe('-172px')
+    expect(panelAnchor.style.width).toBe('248px')
+    expect(panelAnchor.style.maxHeight).toBe('62px')
+    expect(companionCss).toContain('.dsh-companion-popover-anchor {\n  position: absolute;\n  box-sizing: border-box;')
+    expect(companionCss).toContain('.dsh-companion-popover {\n  position: static;\n  width: 100%;\n  box-sizing: border-box;')
+    expect(companionCss).toContain('.dsh-companion-tab[data-edge="right"] { border-radius: 12px 0 0 12px; }')
+    expect(companionCss).toContain('.dsh-companion-tab[data-edge="left"] { border-radius: 0 12px 12px 0; }')
   })
 })
 
@@ -165,6 +232,18 @@ describe('Companion celebration', () => {
     act(() => vi.advanceTimersByTime(2_000))
     expect(orb().getAttribute('data-celebrating')).toBe('false')
   })
+
+  it.each(['working', 'waiting'] as const)('cancels an active celebration when the same session becomes %s', activity => {
+    const rendered = renderCompanion({ model: model({ activity: 'working' }) })
+    rendered.rerender(<Companion model={model()} sessionId="alpha" storage={storage()} viewport={() => viewport} />)
+    expect(orb().getAttribute('data-celebrating')).toBe('true')
+
+    rendered.rerender(<Companion model={model({ activity })} sessionId="alpha" storage={storage()} viewport={() => viewport} />)
+    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context 42 percent` }).getAttribute('data-celebrating')).toBe('false')
+
+    act(() => vi.advanceTimersByTime(2_000))
+    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context 42 percent` }).getAttribute('data-celebrating')).toBe('false')
+  })
 })
 
 describe('Companion placement', () => {
@@ -186,14 +265,14 @@ describe('Companion placement', () => {
 
     expect(anchor().style.left).toBe('688px')
     expect(anchor().style.top).toBe('488px')
-    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: false }))
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: false, edge: 'right' }))
     expect(popover()).toBeNull()
   })
 
   it('clamps the saved position when the viewport shrinks', () => {
     let currentViewport = { ...viewport }
     const saved = storage()
-    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ x: 688, y: 488, collapsed: false }))
+    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ x: 688, y: 488, collapsed: false, edge: 'right' }))
     renderCompanion({ storage: saved, viewport: () => currentViewport })
 
     currentViewport = { width: 300, height: 200 }
@@ -201,7 +280,7 @@ describe('Companion placement', () => {
 
     expect(anchor().style.left).toBe('188px')
     expect(anchor().style.top).toBe('88px')
-    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 188, y: 88, collapsed: false }))
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 188, y: 88, collapsed: false, edge: 'right' }))
   })
 
   it('collapses into an edge tab and restores from it', () => {
@@ -211,12 +290,73 @@ describe('Companion placement', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Collapse companion' }))
     const tab = screen.getByRole('button', { name: 'Show DSH Companion' })
     expect(tab.style.right).toBe('0px')
-    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: true }))
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: true, edge: 'right' }))
 
     fireEvent.click(tab)
     expect(screen.queryByRole('button', { name: 'Show DSH Companion' })).toBeNull()
     expect(orb()).not.toBeNull()
-    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: false }))
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 688, y: 488, collapsed: false, edge: 'right' }))
+  })
+
+  it('persists the collapse edge selected at collapse time across resize and reload', () => {
+    let currentViewport = { ...viewport }
+    const saved = storage()
+    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ x: 100, y: 200, collapsed: false, edge: 'right' }))
+    const rendered = renderCompanion({ storage: saved, viewport: () => currentViewport })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse companion' }))
+    expect(screen.getByRole('button', { name: 'Show DSH Companion' }).style.left).toBe('0px')
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 100, y: 200, collapsed: true, edge: 'left' }))
+
+    currentViewport = { width: 80, height: 600 }
+    fireEvent.resize(window)
+    expect(screen.getByRole('button', { name: 'Show DSH Companion' }).style.left).toBe('0px')
+    rendered.unmount()
+
+    renderCompanion({ storage: saved, viewport: () => currentViewport })
+    expect(screen.getByRole('button', { name: 'Show DSH Companion' }).style.left).toBe('0px')
+  })
+
+  it('migrates an edge-less collapsed preference before a resize can make its fallback ambiguous', () => {
+    let currentViewport = { ...viewport }
+    const saved = storage()
+    saved.setItem('dsh-companion:preferences:v1', JSON.stringify({ x: 100, y: 200, collapsed: true }))
+    const rendered = renderCompanion({ storage: saved, viewport: () => currentViewport })
+    expect(screen.getByRole('button', { name: 'Show DSH Companion' }).style.left).toBe('0px')
+
+    currentViewport = { width: 250, height: 600 }
+    fireEvent.resize(window)
+    rendered.unmount()
+
+    renderCompanion({ storage: saved, viewport: () => currentViewport })
+    expect(screen.getByRole('button', { name: 'Show DSH Companion' }).style.left).toBe('0px')
+  })
+
+  it('returns focus to the recovery tab when the collapse button is keyboard activated', () => {
+    renderCompanion()
+    const collapse = screen.getByRole('button', { name: 'Collapse companion' })
+
+    collapse.focus()
+    fireEvent.keyDown(collapse, { key: 'Enter' })
+    fireEvent.click(collapse, { detail: 0 })
+
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Show DSH Companion' }))
+  })
+
+  it.each([
+    ['pointer cancellation', 'pointerCancel'],
+    ['lost pointer capture', 'lostPointerCapture'],
+  ] as const)('saves the last dragged position after %s', (_name, eventName) => {
+    const saved = storage()
+    renderCompanion({ storage: saved })
+
+    fireEvent.pointerDown(anchor(), { pointerId: 7, clientX: 700, clientY: 500 })
+    fireEvent.pointerMove(anchor(), { pointerId: 7, clientX: 500, clientY: 300 })
+    fireEvent[eventName](anchor(), { pointerId: 7, clientX: 500, clientY: 300 })
+
+    expect(saved.getItem('dsh-companion:preferences:v1')).toBe(JSON.stringify({ x: 488, y: 288, collapsed: false, edge: 'right' }))
+    pointerClick(orb())
+    expect(orb().getAttribute('aria-expanded')).toBe('true')
   })
 })
 

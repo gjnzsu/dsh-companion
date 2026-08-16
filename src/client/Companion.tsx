@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactElement } from 'react'
 import { DataOrb } from './DataOrb.tsx'
-import { clampPosition, loadPreferences, savePreferences, type CompanionPreferences, type Viewport } from './preferences.ts'
+import { clampPosition, loadPreferences, nearestRecoveryEdge, savePreferences, type CompanionPreferences, type Viewport } from './preferences.ts'
 import type { CompanionViewModel } from './types.ts'
 import { UsagePopover } from './UsagePopover.tsx'
 
 const ORB_EXTENT = 88
 const DRAG_THRESHOLD = 4
+const POPOVER_GAP = 10
+const POPOVER_MAX_WIDTH = 248
+const VIEWPORT_INSET = 16
 
 /** Inputs for the session-scoped companion controller. */
 export interface CompanionProps {
@@ -43,11 +46,6 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-/** Select the viewport edge closest to the orb's horizontal centre. */
-function closestEdge(position: CompanionPreferences, viewport: Viewport): 'left' | 'right' {
-  return position.x + ORB_EXTENT / 2 < viewport.width / 2 ? 'left' : 'right'
-}
-
 /**
  * Render the selected session's interactive, locally positioned companion.
  * @param props - The current session view state and optional browser environment adapters.
@@ -60,18 +58,32 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
   const [hovered, setHovered] = useState(false)
   const [focusedWithin, setFocusedWithin] = useState(false)
   const [pinned, setPinned] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
   const [celebrating, setCelebrating] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const tabRef = useRef<HTMLButtonElement>(null)
   const previousRef = useRef<{ sessionId?: string; activity: CompanionViewModel['activity'] }>()
   const celebrationTimerRef = useRef<ReturnType<typeof window.setTimeout>>()
   const preferencesRef = useRef(preferences)
+  const persistInitialCollapsedRef = useRef(preferences.collapsed)
   const dragRef = useRef<DragState>()
   const ignoreNextClickRef = useRef(false)
-  const open = pinned || hovered || focusedWithin
+  const focusRecoveryTabRef = useRef(false)
+  const open = !dismissed && (pinned || hovered || focusedWithin)
 
   useEffect(() => {
     preferencesRef.current = preferences
   }, [preferences])
+
+  useEffect(() => {
+    if (persistInitialCollapsedRef.current) savePreferences(storage, preferencesRef.current)
+  }, [storage])
+
+  useEffect(() => {
+    if (!preferences.collapsed || !focusRecoveryTabRef.current) return
+    focusRecoveryTabRef.current = false
+    tabRef.current?.focus()
+  }, [preferences.collapsed])
 
   useEffect(() => {
     const previous = previousRef.current
@@ -82,7 +94,14 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
       }
       setCelebrating(false)
       setPinned(false)
-    } else if (previous.activity === 'working' && model.activity === 'idle' && !prefersReducedMotion()) {
+      setDismissed(false)
+    } else if (model.activity !== 'idle') {
+      if (celebrationTimerRef.current !== undefined) {
+        window.clearTimeout(celebrationTimerRef.current)
+        celebrationTimerRef.current = undefined
+      }
+      setCelebrating(false)
+    } else if (previous.activity === 'working' && !prefersReducedMotion()) {
       if (celebrationTimerRef.current !== undefined) window.clearTimeout(celebrationTimerRef.current)
       setCelebrating(true)
       celebrationTimerRef.current = window.setTimeout(() => {
@@ -100,7 +119,10 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
   useEffect(() => {
     if (!pinned) return
     const dismissOutside = (event: PointerEvent): void => {
-      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setPinned(false)
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
+        setPinned(false)
+        setDismissed(true)
+      }
     }
     document.addEventListener('pointerdown', dismissOutside, true)
     return () => document.removeEventListener('pointerdown', dismissOutside, true)
@@ -109,7 +131,10 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
   useEffect(() => {
     if (!open) return
     const dismissEscape = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setPinned(false)
+      if (event.key === 'Escape') {
+        setPinned(false)
+        setDismissed(true)
+      }
     }
     document.addEventListener('keydown', dismissEscape)
     return () => document.removeEventListener('keydown', dismissEscape)
@@ -172,13 +197,28 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
     savePreferences(storage, next ?? preferencesRef.current)
   }
 
+  const cancelDrag = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (drag === undefined || drag.pointerId !== event.pointerId) return
+    dragRef.current = undefined
+    event.currentTarget.releasePointerCapture?.(event.pointerId)
+    if (!drag.moved) return
+    savePreferences(storage, preferencesRef.current)
+  }
+
   const collapse = (): void => {
-    const next = { ...preferencesRef.current, collapsed: true }
+    const next = {
+      ...preferencesRef.current,
+      collapsed: true,
+      edge: nearestRecoveryEdge(preferencesRef.current, viewport()),
+    }
+    focusRecoveryTabRef.current = true
     updatePreferences(next)
     savePreferences(storage, next)
     setHovered(false)
     setFocusedWithin(false)
     setPinned(false)
+    setDismissed(false)
   }
 
   const restore = (): void => {
@@ -192,18 +232,33 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
       ignoreNextClickRef.current = false
       return
     }
-    setPinned(current => !current)
+    setPinned(current => {
+      setDismissed(current)
+      return !current
+    })
   }
 
   const currentViewport = viewport()
-  const edge = closestEdge(preferences, currentViewport)
+  const edge = preferences.edge
+  const popoverWidth = Math.min(POPOVER_MAX_WIDTH, Math.max(0, currentViewport.width - VIEWPORT_INSET * 2))
+  const horizontalInset = Math.min(VIEWPORT_INSET, Math.max(0, (currentViewport.width - popoverWidth) / 2))
+  const preferredPopoverLeft = preferences.x + ORB_EXTENT / 2 < currentViewport.width / 2
+    ? preferences.x + ORB_EXTENT + POPOVER_GAP
+    : preferences.x - POPOVER_GAP - popoverWidth
+  const popoverLeft = Math.min(
+    Math.max(preferredPopoverLeft, horizontalInset),
+    currentViewport.width - horizontalInset - popoverWidth,
+  )
+  const spaceAbove = Math.max(0, preferences.y - POPOVER_GAP - VIEWPORT_INSET)
+  const spaceBelow = Math.max(0, currentViewport.height - preferences.y - ORB_EXTENT - POPOVER_GAP - VIEWPORT_INSET)
+  const placePopoverBelow = spaceBelow >= spaceAbove
   const popoverStyle = {
-    ...(preferences.x + ORB_EXTENT / 2 < currentViewport.width / 2
-      ? { left: `${ORB_EXTENT + 10}px` }
-      : { right: `${ORB_EXTENT + 10}px` }),
-    ...(preferences.y + ORB_EXTENT / 2 < currentViewport.height / 2
-      ? { top: `${ORB_EXTENT + 10}px` }
-      : { bottom: `${ORB_EXTENT + 10}px` }),
+    left: `${popoverLeft - preferences.x}px`,
+    width: `${popoverWidth}px`,
+    maxHeight: `${placePopoverBelow ? spaceBelow : spaceAbove}px`,
+    ...(placePopoverBelow
+      ? { top: `${ORB_EXTENT + POPOVER_GAP}px` }
+      : { bottom: `${ORB_EXTENT + POPOVER_GAP}px` }),
   }
 
   return (
@@ -213,7 +268,9 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
             <button
               aria-label="Show DSH Companion"
               className="dsh-companion-tab"
+              data-edge={edge}
               onClick={restore}
+              ref={tabRef}
               style={{ [edge]: '0px', top: `${preferences.y}px` }}
               type="button"
             >
@@ -224,15 +281,23 @@ export function Companion({ sessionId, model, storage: providedStorage, viewport
             <div
               className="dsh-companion-anchor"
               data-testid="dsh-companion-anchor"
-              onFocusCapture={() => setFocusedWithin(true)}
+              onFocusCapture={() => {
+                setDismissed(false)
+                setFocusedWithin(true)
+              }}
               onBlurCapture={event => {
                 if (!event.currentTarget.contains(event.relatedTarget)) setFocusedWithin(false)
               }}
               onPointerDown={handlePointerDown}
-              onPointerEnter={() => setHovered(true)}
+              onPointerEnter={() => {
+                setDismissed(false)
+                setHovered(true)
+              }}
               onPointerLeave={() => setHovered(false)}
               onPointerMove={handlePointerMove}
               onPointerUp={finishDrag}
+              onPointerCancel={cancelDrag}
+              onLostPointerCapture={cancelDrag}
               style={{ left: `${preferences.x}px`, top: `${preferences.y}px` }}
             >
               <DataOrb celebrating={celebrating} expanded={open} model={model} onClick={togglePinned} onCollapse={collapse} />

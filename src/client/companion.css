@@ -217,8 +217,9 @@
 }
 
 .dsh-companion-popover {
-  position: absolute;
-  width: min(248px, calc(100vw - 32px));
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px;
   color: var(--companion-text);
   border: 1px solid var(--companion-border);
@@ -231,6 +232,9 @@
 
 .dsh-companion-popover-anchor {
   position: absolute;
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   pointer-events: auto;
 }
 
@@ -266,6 +270,9 @@
   box-shadow: 0 6px 18px var(--companion-shadow);
   font: var(--dsw-font-xs-13, 600 12px/1.2 system-ui, sans-serif);
 }
+
+.dsh-companion-tab[data-edge="right"] { border-radius: 12px 0 0 12px; }
+.dsh-companion-tab[data-edge="left"] { border-radius: 0 12px 12px 0; }
 
 @keyframes dsh-companion-breathe {
   50% { box-shadow: 0 10px 24px var(--companion-shadow), 0 0 0 4px var(--orb-ring); }
