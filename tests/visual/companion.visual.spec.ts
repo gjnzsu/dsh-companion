@@ -19,6 +19,11 @@ for (const [name, width, height, theme, motion, open] of cases) {
     const root = await waitForGallery(page)
 
     await expect(root.locator('[data-scenario-id]')).toHaveCount(7)
+    const celebration = root.locator('[data-scenario-id="celebration"]')
+    const celebrationOrb = celebration.locator('.dsh-companion-orb')
+    await expect(celebrationOrb).toHaveAttribute('data-activity', 'idle')
+    await expect(celebrationOrb).toHaveAttribute('data-celebrating', motion === 'reduced' ? 'false' : 'true')
+    await expect(celebration.locator('.dsh-companion-state-label')).toHaveText(motion === 'reduced' ? 'Idle' : 'Done')
     if (open === 'pinned') {
       for (const card of await root.locator('[data-scenario-id]').all()) await assertPanelGeometry(card)
     }

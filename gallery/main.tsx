@@ -1,10 +1,8 @@
 import { createRoot } from 'react-dom/client'
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import companionCssText from '../src/client/companion.css?raw'
 import { Companion } from '../src/client/Companion.tsx'
-import { DataOrb } from '../src/client/DataOrb.tsx'
 import type { Viewport } from '../src/client/preferences.ts'
-import { UsagePopover } from '../src/client/UsagePopover.tsx'
 import galleryCssText from './gallery.css?raw'
 import { SYNTHETIC_SCENARIOS, type SyntheticScenario } from './scenarios.ts'
 
@@ -47,82 +45,47 @@ function memoryStorage(viewport: Viewport, placement: GalleryPlacement): Storage
   return storage
 }
 
-function popoverStyle(viewport: Viewport, position: { x: number; y: number }): CSSProperties {
-  const width = Math.min(248, viewport.width - 32)
-  const preferredLeft = position.x + 44 < viewport.width / 2
-    ? position.x + 98
-    : position.x - 10 - width
-  const left = Math.min(Math.max(preferredLeft, 16), viewport.width - 16 - width)
-  const spaceAbove = Math.max(0, position.y - 26)
-  const spaceBelow = Math.max(0, viewport.height - position.y - 114)
-  const below = spaceBelow >= spaceAbove
-  return {
-    left: `${left - position.x}px`,
-    width: `${width}px`,
-    maxHeight: `${below ? spaceBelow : spaceAbove}px`,
-    ...(below ? { top: '98px' } : { bottom: '98px' }),
-  }
-}
-
 interface FixtureProps {
   scenario: SyntheticScenario
   viewport: Viewport
   placement: GalleryPlacement
   open: GalleryOpen
+  motion: GalleryMotion
   onReady: (id: string) => void
   geometry?: boolean
 }
 
-function ScenarioFixture({ scenario, viewport, placement, open, onReady, geometry = false }: FixtureProps): ReactElement {
+function ScenarioFixture({ scenario, viewport, placement, open, motion, onReady, geometry = false }: FixtureProps): ReactElement {
   const fixtureRef = useRef<HTMLElement>(null)
   const storage = useMemo(() => memoryStorage(viewport, placement), [placement, viewport])
-  const [celebrationExpanded, setCelebrationExpanded] = useState(false)
-  const directPosition = positionFor(viewport, placement)
+  const [model, setModel] = useState(() => scenario.transitionFrom ?? scenario.model)
+
+  useEffect(() => {
+    if (scenario.transitionFrom !== undefined) setModel(scenario.model)
+  }, [scenario])
 
   useEffect(() => {
     const fixture = fixtureRef.current
     const orb = fixture?.querySelector<HTMLButtonElement>('.dsh-companion-orb')
     if (fixture === null || orb === undefined || orb === null) return
 
-    if (open === 'closed') {
-      onReady(scenario.id)
-      return
-    }
-
-    const completeWhenExpanded = (): void => {
-      if (orb.getAttribute('aria-expanded') === 'true' && fixture.querySelector('[role="status"]') !== null) {
+    const completeWhenReady = (): void => {
+      const expectsCelebration = scenario.transitionFrom !== undefined && motion === 'normal'
+      const interactionReady = open === 'closed'
+        || (orb.getAttribute('aria-expanded') === 'true' && fixture.querySelector('[role="status"]') !== null)
+      if (interactionReady
+        && orb.getAttribute('data-activity') === scenario.model.activity
+        && orb.getAttribute('data-celebrating') === String(expectsCelebration)) {
         observer.disconnect()
         onReady(scenario.id)
       }
     }
-    const observer = new MutationObserver(completeWhenExpanded)
+    const observer = new MutationObserver(completeWhenReady)
     observer.observe(fixture, { attributes: true, childList: true, subtree: true })
-    orb.click()
-    completeWhenExpanded()
+    if (open === 'pinned') orb.click()
+    completeWhenReady()
     return () => observer.disconnect()
-  }, [onReady, open, scenario.id])
-
-  const content = scenario.celebrating
-    ? (
-        <div
-          className="dsh-companion-root gallery-direct-root"
-          style={{ '--gallery-orb-x': `${directPosition.x}px`, '--gallery-orb-y': `${directPosition.y}px` } as CSSProperties}
-        >
-          <div className="dsh-companion-anchor gallery-direct-anchor">
-            <DataOrb
-              celebrating
-              expanded={celebrationExpanded}
-              model={scenario.model}
-              onClick={() => setCelebrationExpanded(current => !current)}
-              onCollapse={() => {}}
-            />
-            {celebrationExpanded
-              ? <div className="dsh-companion-popover-anchor" style={popoverStyle(viewport, directPosition)}><UsagePopover model={scenario.model} /></div>
-              : null}
-          </div>
-        </div>
-      )
-    : <Companion model={scenario.model} sessionId={scenario.sessionId} storage={storage} viewport={() => viewport} />
+  }, [motion, onReady, open, scenario])
 
   return (
     <section
@@ -131,7 +94,9 @@ function ScenarioFixture({ scenario, viewport, placement, open, onReady, geometr
       ref={fixtureRef}
     >
       {geometry ? null : <h2>{scenario.title}</h2>}
-      <div className="gallery-stage">{content}</div>
+      <div className="gallery-stage">
+        <Companion model={model} sessionId={scenario.sessionId} storage={storage} viewport={() => viewport} />
+      </div>
     </section>
   )
 }
@@ -180,6 +145,7 @@ function Gallery(): ReactElement {
                 {scenarios.map(scenario => (
                   <ScenarioFixture
                     key={scenario.id}
+                    motion={motion}
                     onReady={markReady}
                     open={open}
                     placement="bottom-right"
@@ -193,6 +159,7 @@ function Gallery(): ReactElement {
         : (
             <ScenarioFixture
               geometry
+              motion={motion}
               onReady={markReady}
               open="pinned"
               placement={geometry}

@@ -47,11 +47,16 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Render the selected session's interactive, locally positioned companion.
+ * Bind transient controller state to the selected session identity.
  * @param props - The current session view state and optional browser environment adapters.
  * @returns A click-through overlay containing the orb or its recovery tab.
  */
-export function Companion({ sessionId, model, storage: providedStorage, viewport: providedViewport }: CompanionProps): ReactElement {
+export function Companion(props: CompanionProps): ReactElement {
+  return <CompanionController key={props.sessionId} {...props} />
+}
+
+/** Render one selected session's interactive, locally positioned companion. */
+function CompanionController({ sessionId, model, storage: providedStorage, viewport: providedViewport }: CompanionProps): ReactElement {
   const storage = providedStorage ?? browserStorage()
   const viewport = providedViewport ?? browserViewport
   const [preferences, setPreferences] = useState(() => loadPreferences(storage, viewport()))

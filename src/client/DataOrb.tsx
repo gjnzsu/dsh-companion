@@ -14,12 +14,16 @@ function activityLabel(activity: CompanionViewModel['activity']): string {
   return `${activity[0]!.toUpperCase()}${activity.slice(1)}`
 }
 
+/** Format a known pressure band as the compact non-color cue rendered on the orb. */
+function pressureLabel(pressure: Exclude<CompanionViewModel['pressure'], 'unknown'>): string {
+  return `${pressure[0].toUpperCase()}${pressure.slice(1)}`
+}
+
 /** Describe the orb state for users who cannot rely on its expression or color. */
 function accessibleName(model: CompanionViewModel): string {
-  if (model.activity === 'sleeping') return 'DSH Companion: sleeping'
-  const pressure = model.contextPercent === undefined
-    ? 'context unknown'
-    : `context ${Math.min(100, Math.round(model.contextPercent))} percent`
+  const pressure = model.pressure === 'unknown' || model.contextPercent === undefined
+    ? 'context pressure unknown'
+    : `context pressure ${model.pressure}, ${Math.min(100, Math.round(model.contextPercent))} percent`
   return `DSH Companion: ${model.activity}, ${pressure}`
 }
 
@@ -54,6 +58,17 @@ export function DataOrb({ model, celebrating, expanded, onCollapse, ...buttonPro
         {[0, 1, 2].map(index => (
           <span aria-hidden="true" className="dsh-companion-particle" data-orb-particle key={index} />
         ))}
+        {model.pressure === 'unknown'
+          ? null
+          : (
+              <span
+                aria-hidden="true"
+                className="dsh-companion-pressure-label"
+                data-pressure-band={model.pressure}
+              >
+                {pressureLabel(model.pressure)}
+              </span>
+            )}
         <span className="dsh-companion-state-label">{celebrating ? 'Done' : activityLabel(model.activity)}</span>
       </button>
       <button

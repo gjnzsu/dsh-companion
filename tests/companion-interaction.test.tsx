@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
+import { Profiler } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Companion } from '../src/client/Companion.tsx'
 import type { CompanionViewModel } from '../src/client/types.ts'
@@ -36,7 +37,7 @@ function renderCompanion(overrides: Partial<React.ComponentProps<typeof Companio
 }
 
 function orb(): HTMLButtonElement {
-  return screen.getByRole('button', { name: 'DSH Companion: idle, context 42 percent' })
+  return screen.getByRole('button', { name: 'DSH Companion: idle, context pressure normal, 42 percent' })
 }
 
 function anchor(): HTMLElement {
@@ -196,6 +197,51 @@ describe('Companion disclosure', () => {
 })
 
 describe('Companion celebration', () => {
+  it('never commits the previous session pin or celebration state with the next session model', () => {
+    const commits: Array<{
+      accessibleName: string | null
+      celebrating: string | null
+      expanded: string | null
+      label: string | null
+      popover: boolean
+    }> = []
+    const saved = storage()
+    const onRender = (): void => {
+      const renderedOrb = document.querySelector<HTMLButtonElement>('.dsh-companion-orb')
+      if (renderedOrb === null) return
+      commits.push({
+        accessibleName: renderedOrb.getAttribute('aria-label'),
+        celebrating: renderedOrb.getAttribute('data-celebrating'),
+        expanded: renderedOrb.getAttribute('aria-expanded'),
+        label: renderedOrb.querySelector('.dsh-companion-state-label')?.textContent ?? null,
+        popover: document.querySelector('.dsh-companion-popover') !== null,
+      })
+    }
+    const renderProfiled = (sessionId: string, state: CompanionViewModel) => (
+      <Profiler id="session-commit" onRender={onRender}>
+        <Companion model={state} sessionId={sessionId} storage={saved} viewport={() => viewport} />
+      </Profiler>
+    )
+    const rendered = render(renderProfiled('alpha', model({ activity: 'working' })))
+    fireEvent.click(screen.getByRole('button', { name: 'DSH Companion: working, context pressure normal, 42 percent' }))
+    rendered.rerender(renderProfiled('alpha', model({ activity: 'idle' })))
+    expect(screen.getByText('Done')).not.toBeNull()
+    expect(popover()).not.toBeNull()
+
+    commits.length = 0
+    rendered.rerender(renderProfiled('beta', model({ pressure: 'attention', contextPercent: 74 })))
+
+    const betaCommits = commits.filter(commit => commit.accessibleName?.includes('context pressure attention'))
+    expect(betaCommits.length).toBeGreaterThan(0)
+    expect(betaCommits).toEqual(betaCommits.map(commit => ({
+      ...commit,
+      celebrating: 'false',
+      expanded: 'false',
+      label: 'Idle',
+      popover: false,
+    })))
+  })
+
   it('celebrates a same-session working-to-idle transition for exactly two seconds', () => {
     const rendered = renderCompanion({ model: model({ activity: 'working' }) })
 
@@ -239,10 +285,10 @@ describe('Companion celebration', () => {
     expect(orb().getAttribute('data-celebrating')).toBe('true')
 
     rendered.rerender(<Companion model={model({ activity })} sessionId="alpha" storage={storage()} viewport={() => viewport} />)
-    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context 42 percent` }).getAttribute('data-celebrating')).toBe('false')
+    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context pressure normal, 42 percent` }).getAttribute('data-celebrating')).toBe('false')
 
     act(() => vi.advanceTimersByTime(2_000))
-    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context 42 percent` }).getAttribute('data-celebrating')).toBe('false')
+    expect(screen.getByRole('button', { name: `DSH Companion: ${activity}, context pressure normal, 42 percent` }).getAttribute('data-celebrating')).toBe('false')
   })
 })
 

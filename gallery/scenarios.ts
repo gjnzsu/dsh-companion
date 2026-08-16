@@ -7,8 +7,7 @@ export interface SyntheticScenario {
   title: string
   model: CompanionViewModel
   sessionId?: string
-  celebrating?: boolean
-  pinned?: boolean
+  transitionFrom?: CompanionViewModel
 }
 
 const CONTEXT_WINDOW = 128_000
@@ -44,6 +43,7 @@ const fullUsage = {
 } as const
 
 const working42 = input('working-42', true, 42, fullUsage, 6)
+const celebrationWorking = { ...working42, sessionId: 'celebration' }
 
 /** The approved credential-free state matrix shared by gallery and browser tests. */
 export const SYNTHETIC_SCENARIOS: readonly SyntheticScenario[] = [
@@ -96,7 +96,7 @@ export const SYNTHETIC_SCENARIOS: readonly SyntheticScenario[] = [
     id: 'celebration',
     title: 'Celebration · 42%',
     sessionId: 'celebration',
-    model: deriveCompanionState({ ...working42, sessionId: 'celebration' }),
-    celebrating: true,
+    model: deriveCompanionState({ ...celebrationWorking, running: false }),
+    transitionFrom: deriveCompanionState(celebrationWorking),
   },
 ] as const

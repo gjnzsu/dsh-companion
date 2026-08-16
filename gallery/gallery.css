@@ -98,11 +98,6 @@ body,
   inset: 0;
 }
 
-.gallery-direct-anchor {
-  left: var(--gallery-orb-x);
-  top: var(--gallery-orb-y);
-}
-
 .gallery-motion-normal .dsh-companion-root *,
 .gallery-motion-normal .dsh-companion-root *::before,
 .gallery-motion-normal .dsh-companion-root *::after {

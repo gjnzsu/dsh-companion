@@ -37,13 +37,18 @@ describe('Synthetic State Matrix', () => {
       'waiting-65': { activity: 'waiting', pressure: 'normal', contextPercent: 65 },
       'attention-74': { activity: 'idle', pressure: 'attention', contextPercent: 74 },
       'warning-92': { activity: 'working', pressure: 'warning', contextPercent: 92 },
-      celebration: { activity: 'working', pressure: 'normal', contextPercent: 42 },
+      celebration: { activity: 'idle', pressure: 'normal', contextPercent: 42 },
     })
   })
 
-  it('contains one deterministic celebration fixture', () => {
-    expect(SYNTHETIC_SCENARIOS.filter(scenario => scenario.celebrating)).toHaveLength(1)
-    expect(SYNTHETIC_SCENARIOS.find(scenario => scenario.celebrating)?.id).toBe('celebration')
+  it('represents celebration as a same-session working-to-idle transition', () => {
+    const celebration = SYNTHETIC_SCENARIOS.find(scenario => scenario.id === 'celebration')
+    expect(celebration).toMatchObject({
+      id: 'celebration',
+      sessionId: 'celebration',
+      model: { activity: 'idle' },
+      transitionFrom: { activity: 'working' },
+    })
   })
 
   it('uses unique ids and JSON-serializable fixtures', () => {

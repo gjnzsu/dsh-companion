@@ -199,7 +199,7 @@ No motion may flash, shake, or alternate high-contrast colors. Timing may be red
 When `prefers-reduced-motion: reduce` is active:
 
 - Stop breathing, orbiting, particle travel, and repeated waiting motion.
-- Replace celebration with one static success accent that settles immediately to idle.
+- Skip the celebration response and settle directly to the idle expression and label.
 - Keep short opacity changes only when needed to reveal the popover.
 - Preserve activity expressions, pressure ring, labels, and focus indicators.
 
@@ -236,7 +236,7 @@ The gallery renders production components for these required scenarios:
 | Waiting 65% | Waiting | Normal | Interaction cue |
 | Attention 74% | Idle | Attention | Full metrics |
 | Warning 92% | Working | Warning | Full metrics |
-| Celebration | Transition response | Normal | Frozen deterministic frame |
+| Celebration | Same-session working-to-idle transition | Normal | Production response; idle under reduced motion |
 
 Review every scenario in light and dark themes. Screenshot coverage additionally includes desktop and compact widths, closed and pinned details, and reduced-motion mode.
 

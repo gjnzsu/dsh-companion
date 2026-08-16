@@ -21,11 +21,11 @@ function cssRule(selector: string): string {
 
 describe('DataOrb', () => {
   it.each([
-    ['sleeping', model({ activity: 'sleeping' }), 'DSH Companion: sleeping', 'Sleeping'],
-    ['idle', model({ pressure: 'attention', contextPercent: 74 }), 'DSH Companion: idle, context 74 percent', 'Idle'],
-    ['working', model({ activity: 'working', pressure: 'warning', contextPercent: 92 }), 'DSH Companion: working, context 92 percent', 'Working'],
-    ['waiting', model({ activity: 'waiting' }), 'DSH Companion: waiting, context unknown', 'Waiting'],
-  ] as const)('renders the %s state with its accessible name and visible label', (_state, state, accessibleName, label) => {
+    ['sleeping', model({ activity: 'sleeping' }), 'DSH Companion: sleeping, context pressure unknown', 'Sleeping', undefined],
+    ['idle', model({ pressure: 'attention', contextPercent: 74 }), 'DSH Companion: idle, context pressure attention, 74 percent', 'Idle', 'Attention'],
+    ['working', model({ activity: 'working', pressure: 'warning', contextPercent: 92 }), 'DSH Companion: working, context pressure warning, 92 percent', 'Working', 'Warning'],
+    ['waiting', model({ activity: 'waiting' }), 'DSH Companion: waiting, context pressure unknown', 'Waiting', undefined],
+  ] as const)('renders the %s state with its accessible name and visible labels', (_state, state, accessibleName, label, pressureLabel) => {
     const { container } = render(
       <DataOrb celebrating={false} expanded={false} model={state} onCollapse={vi.fn()} />,
     )
@@ -34,6 +34,13 @@ describe('DataOrb', () => {
     expect(orb.getAttribute('type')).toBe('button')
     expect(orb.getAttribute('aria-expanded')).toBe('false')
     expect(within(orb).getByText(label)).not.toBeNull()
+    if (pressureLabel === undefined) {
+      expect(orb.querySelector('[data-pressure-band]')).toBeNull()
+    } else {
+      const cue = within(orb).getByText(pressureLabel)
+      expect(cue.getAttribute('data-pressure-band')).toBe(state.pressure)
+      expect(cue.getAttribute('aria-hidden')).toBe('true')
+    }
     expect(orb.getAttribute('data-activity')).toBe(state.activity)
     expect(orb.getAttribute('data-pressure')).toBe(state.pressure)
     expect(orb.getAttribute('data-celebrating')).toBe('false')
@@ -56,7 +63,8 @@ describe('DataOrb', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: 'DSH Companion: working, context 42 percent' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: 'DSH Companion: working, context pressure normal, 42 percent' }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('Normal').getAttribute('data-pressure-band')).toBe('normal')
     const collapse = screen.getByRole('button', { name: 'Collapse companion' })
     collapse.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
     collapse.click()

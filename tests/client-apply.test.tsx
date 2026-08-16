@@ -150,14 +150,14 @@ describe('DSH Companion client application', () => {
     const entry = client.entries[0]!
 
     render(createElement(entry.component, { useSessions: sessions.useSessions }))
-    expect(screen.getByRole('button', { name: 'DSH Companion: sleeping' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'DSH Companion: sleeping, context pressure unknown' })).not.toBeNull()
 
     sessions.update(state('missing'))
-    expect(screen.getByRole('button', { name: 'DSH Companion: sleeping' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'DSH Companion: sleeping, context pressure unknown' })).not.toBeNull()
 
     const alphaWithoutProjections = { id: 'alpha', running: true }
     sessions.update(state('alpha', alphaWithoutProjections))
-    expect(screen.getByRole('button', { name: 'DSH Companion: working, context unknown' })).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'DSH Companion: working, context pressure unknown' })).not.toBeNull()
 
     const alpha = {
       id: 'alpha',
@@ -170,7 +170,7 @@ describe('DSH Companion client application', () => {
       },
     }
     sessions.update(state('alpha', alpha))
-    const alphaOrb = screen.getByRole('button', { name: 'DSH Companion: working, context 40 percent' })
+    const alphaOrb = screen.getByRole('button', { name: 'DSH Companion: working, context pressure normal, 40 percent' })
     expect(alphaOrb.getAttribute('data-activity')).toBe('working')
     expect(alphaOrb.getAttribute('data-pressure')).toBe('normal')
 
@@ -191,7 +191,7 @@ describe('DSH Companion client application', () => {
         sessionStats: { steps: 1 },
       },
     }))
-    const betaOrb = screen.getByRole('button', { name: 'DSH Companion: waiting, context 90 percent' })
+    const betaOrb = screen.getByRole('button', { name: 'DSH Companion: waiting, context pressure warning, 90 percent' })
     expect(betaOrb.getAttribute('data-activity')).toBe('waiting')
     expect(betaOrb.getAttribute('data-pressure')).toBe('warning')
 
