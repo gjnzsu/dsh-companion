@@ -4,7 +4,7 @@
   --companion-text: var(--dsw-alias-label-primary, #18243a);
   --companion-muted: var(--dsw-alias-label-secondary, #5c6a82);
   --companion-border: var(--dsw-alias-border-l2, #c4d0e4);
-  --companion-accent: var(--dsw-alias-brand-primary, #4f8cff);
+  --companion-accent: var(--dsw-alias-state-business-primary, #4f8cff);
   --companion-business: var(--dsw-alias-state-business-primary, #28a6a1);
   --companion-attention: var(--dsw-alias-state-warn-primary, #d68b20);
   --companion-waiting: var(--dsw-alias-state-warn-label, #9b5f12);

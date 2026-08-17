@@ -6,7 +6,6 @@ import type { Viewport } from '../src/client/preferences.ts'
 import galleryCssText from './gallery.css?raw'
 import { SYNTHETIC_SCENARIOS, type SyntheticScenario } from './scenarios.ts'
 
-type GalleryTheme = 'light' | 'dark'
 type GalleryMotion = 'normal' | 'reduced'
 type GalleryOpen = 'closed' | 'pinned'
 type GalleryPlacement = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'

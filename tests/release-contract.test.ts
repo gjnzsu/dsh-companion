@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
+  repository?: { type?: string, url?: string }
+  homepage?: string
+  bugs?: { url?: string }
+  keywords?: string[]
+  files?: string[]
+  publishConfig?: { access?: string, registry?: string }
   dsh?: { client?: { inject?: unknown } }
   dependencies?: Record<string, string>
   optionalDependencies?: Record<string, string>
@@ -44,4 +50,17 @@ test('provides Chinese-first and English README entry points', () => {
   expect(englishReadme).toContain('English | [简体中文](./README.md)')
   expect(chineseReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
   expect(englishReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
+})
+
+test('publishes with discoverable public package metadata', () => {
+  expect(manifest.repository).toEqual({
+    type: 'git',
+    url: 'git+https://github.com/gjnzsu/dsh-companion.git',
+  })
+  expect(manifest.homepage).toBe('https://github.com/gjnzsu/dsh-companion#readme')
+  expect(manifest.bugs?.url).toBe('https://github.com/gjnzsu/dsh-companion/issues')
+  expect(manifest.keywords).toEqual(expect.arrayContaining(['deepseek-harness', 'dsh-plugin']))
+  expect(manifest.files).toContain('README.en.md')
+  expect(manifest.publishConfig?.access).toBe('public')
+  expect(manifest.publishConfig?.registry).toBe('https://registry.npmjs.org/')
 })

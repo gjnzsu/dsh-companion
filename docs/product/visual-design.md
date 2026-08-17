@@ -129,7 +129,7 @@ Use these DSH semantic roles when available:
 | Primary text | `--dsw-alias-label-primary` |
 | Secondary text | `--dsw-alias-label-secondary`, `--dsw-alias-label-tertiary` |
 | Border | `--dsw-alias-border-l2`, `--dsw-alias-border-l3` |
-| Normal accent | `--dsw-alias-brand-primary`, `--dsw-alias-state-business-primary` |
+| Orb core and normal accent | `--dsw-alias-state-business-primary` |
 | Waiting/attention | `--dsw-alias-state-warn-primary`, `--dsw-alias-state-warn-label` |
 | Celebration | `--dsw-alias-state-success-primary` |
 | Warning emphasis | `--dsw-alias-state-warn-primary`; error tokens only for sufficient contrast |

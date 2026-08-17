@@ -20,6 +20,10 @@ function cssRule(selector: string): string {
 }
 
 describe('DataOrb', () => {
+  it('uses the DSH business accent for the orb body', () => {
+    expect(cssRule('.dsh-companion-root')).toContain('--companion-accent: var(--dsw-alias-state-business-primary, #4f8cff)')
+  })
+
   it.each([
     ['sleeping', model({ activity: 'sleeping' }), 'DSH Companion: sleeping, context pressure unknown', 'Sleeping', undefined],
     ['idle', model({ pressure: 'attention', contextPercent: 74 }), 'DSH Companion: idle, context pressure attention, 74 percent', 'Idle', 'Attention'],

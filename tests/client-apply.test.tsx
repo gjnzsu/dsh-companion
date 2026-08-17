@@ -1,5 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { createElement, useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { createElement, useEffect, useState, type ComponentType } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { apply, inject } from '../src/client/index.ts'
 

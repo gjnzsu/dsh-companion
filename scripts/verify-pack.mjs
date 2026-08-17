@@ -21,7 +21,7 @@ const start = Math.max(json.lastIndexOf('\n{'), json.lastIndexOf('\n[')) + 1
 const packed = JSON.parse(json.slice(start))
 const [{ filename, files }] = Array.isArray(packed) ? packed : [packed]
 const names = new Set(files.map(file => file.path))
-for (const required of ['package.json', 'cordis.patch.yml', 'lib/index.js', 'lib/client.js', 'lib/types/index.d.ts', 'lib/types/client/index.d.ts', 'LICENSE', 'README.md']) {
+for (const required of ['package.json', 'cordis.patch.yml', 'lib/index.js', 'lib/client.js', 'lib/types/index.d.ts', 'lib/types/client/index.d.ts', 'LICENSE', 'README.md', 'README.en.md']) {
   if (!names.has(required)) throw new Error(`packed file missing: ${required}`)
 }
 for (const name of names) {
