@@ -122,7 +122,14 @@ DSH 负责维护事件日志和 projections。Companion 从 Web 客户端已经�
 
 ## 安装
 
-当前 `0.1.0` 尚未发布到 npm。可以从源码构建 tarball 后安装到 DSH Web profile：
+从 npm 安装到 DSH Web profile：
+
+```sh
+dsh plugin --profile web add dsh-companion
+dsh web
+```
+
+也可以从源码构建本地 tarball：
 
 ```sh
 git clone https://github.com/gjnzsu/dsh-companion.git
@@ -130,7 +137,7 @@ cd dsh-companion
 pnpm install --frozen-lockfile
 pnpm build
 pnpm pack --pack-destination .
-dsh plugin --profile web add ./dsh-companion-0.1.0.tgz
+dsh plugin --profile web add ./dsh-companion-0.1.1.tgz
 dsh web
 ```
 
@@ -157,7 +164,7 @@ dsh plugin --profile web remove dsh-companion
 
 ## 兼容性
 
-`dsh-companion@0.1.0` 精确面向 **DeepSeek Harness `0.1.0-rc.5`**。Harness 仍处于 developer preview，后续 release candidate 可能需要 Companion 更新。
+`dsh-companion@0.1.1` 精确面向 **DeepSeek Harness `0.1.0-rc.5`**。Harness 仍处于 developer preview，后续 release candidate 可能需要 Companion 更新。
 
 ## 开发与测试
 

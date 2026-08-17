@@ -122,7 +122,14 @@ Unavailable metrics are omitted instead of estimated.
 
 ## Install
 
-Version `0.1.0` is not published to npm yet. Build a tarball from source and install it into the DSH Web profile:
+Install from npm into the DSH Web profile:
+
+```sh
+dsh plugin --profile web add dsh-companion
+dsh web
+```
+
+You can also build a local tarball from source:
 
 ```sh
 git clone https://github.com/gjnzsu/dsh-companion.git
@@ -130,7 +137,7 @@ cd dsh-companion
 pnpm install --frozen-lockfile
 pnpm build
 pnpm pack --pack-destination .
-dsh plugin --profile web add ./dsh-companion-0.1.0.tgz
+dsh plugin --profile web add ./dsh-companion-0.1.1.tgz
 dsh web
 ```
 
@@ -146,7 +153,7 @@ The companion reads only status and numeric projections already delivered for th
 
 ## Compatibility
 
-`dsh-companion@0.1.0` targets **DeepSeek Harness `0.1.0-rc.5`** exactly. Harness is in developer preview, so later release candidates may require a Companion update.
+`dsh-companion@0.1.1` targets **DeepSeek Harness `0.1.0-rc.5`** exactly. Harness is in developer preview, so later release candidates may require a Companion update.
 
 ## Development and testing
 

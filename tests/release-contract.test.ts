@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
+  version?: string
   repository?: { type?: string, url?: string }
   homepage?: string
   bugs?: { url?: string }
@@ -50,6 +51,14 @@ test('provides Chinese-first and English README entry points', () => {
   expect(englishReadme).toContain('English | [简体中文](./README.md)')
   expect(chineseReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
   expect(englishReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
+})
+
+test('documents the published registry installation for the patch release', () => {
+  expect(manifest.version).toBe('0.1.1')
+  expect(chineseReadme).toContain('dsh plugin --profile web add dsh-companion')
+  expect(englishReadme).toContain('dsh plugin --profile web add dsh-companion')
+  expect(chineseReadme).not.toContain('尚未发布到 npm')
+  expect(englishReadme).not.toContain('not published to npm yet')
 })
 
 test('publishes with discoverable public package metadata', () => {
