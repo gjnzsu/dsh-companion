@@ -9,7 +9,8 @@ const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
   peerDependenciesMeta?: Record<string, { optional?: boolean }>
   devDependencies?: Record<string, string>
 }
-const readme = readFileSync('README.md', 'utf8')
+const chineseReadme = readFileSync('README.md', 'utf8')
+const englishReadme = readFileSync('README.en.md', 'utf8')
 
 test('leaves host and host-injected modules out of install-time dependencies', () => {
   expect(manifest.dsh?.client?.inject).toEqual([
@@ -33,6 +34,14 @@ test('keeps the published client declarations independent of unpublished DSH pac
 })
 
 test('describes output as accumulated provider-reported usage', () => {
-  expect(readme).toContain('**Output** is the accumulated provider-reported output-token count.')
-  expect(readme).not.toContain('projected output-token count')
+  expect(englishReadme).toContain('| Output | The accumulated provider-reported output-token count |')
+  expect(englishReadme).not.toContain('projected output-token count')
+  expect(chineseReadme).toContain('供应商已报告并累计的 output token 数')
+})
+
+test('provides Chinese-first and English README entry points', () => {
+  expect(chineseReadme).toContain('[English](./README.en.md) | 简体中文')
+  expect(englishReadme).toContain('English | [简体中文](./README.md)')
+  expect(chineseReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
+  expect(englishReadme).toContain('docs/assets/dsh-companion-state-matrix.png')
 })
