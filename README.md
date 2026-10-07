@@ -72,6 +72,10 @@ DSH 负责维护事件日志和 projections。Companion 从 Web 客户端已经�
 - [架构设计](./docs/architecture.md)
 - [MVP 用户故事](./docs/product/2026-08-16-mvp-user-stories.md)
 
+## 实验记录
+
+- [DSH 版本对比实验（v0.1 CLI vs v0.2 Desktop）](./docs/experiments/2026-10-06-dsh-version-comparison.md) — 测试套件设计、冒烟实测数据与 Windows 实现踩坑
+
 ## 状态说明
 
 ### 活动状态
